@@ -1,6 +1,6 @@
 # Inmuebles24.com Property Scraper
 
-A Python script that uses Crawl4AI to scrape property listings from inmuebles24.com and store the data in a Supabase database.
+A Python script that uses Crawl4AI to scrape the property listings from inmuebles24.com and store the data in a Supabase database.
 
 ## Features
 
@@ -293,5 +293,6 @@ For issues and questions:
 
 - **v1.0**: Initial release with basic scraping functionality
 - **v1.1**: Added session tracking and error logging
-- **v1.2**: Improved data extraction and database schema #   P r o p S c r a p e r  
+- **v1.2**: Improved data extraction and database schema #   P r o p S c r a p e r 
+ 
  
