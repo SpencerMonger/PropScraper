@@ -52,7 +52,12 @@ A Python-based web scraping system designed to extract property listings from re
    - Copy and paste the contents of `schema.sql`
    - Execute the SQL to create all necessary tables
 
-3. **Get your Supabase credentials**:
+3. **Migrate existing database** (if you have existing data):
+   - If you're upgrading from an older version, run `migrate_schema.sql`
+   - This will add new columns and update the structure for enhanced parsing
+   - The migration preserves existing data while adding new capabilities
+
+4. **Get your Supabase credentials**:
    - Go to Project Settings > API
    - Copy your Project URL and anon public key
 
@@ -201,14 +206,15 @@ The scraper extracts the following property data:
 
 - **Basic Information**:
   - Title and description
-  - Property type (casa, departamento, etc.)
-  - Operation type (venta, renta)
+  - Property type (house, apartment, lot) - automatically detected from text
+  - Operation type (sale, rent)
 
 - **Location**:
   - Full address
   - Neighborhood
   - City and state
-  - Coordinates (when available)
+  - GPS coordinates (latitude, longitude)
+  - GPS coordinates string for easy parsing
 
 - **Property Details**:
   - Price and currency
@@ -217,11 +223,11 @@ The scraper extracts the following property data:
   - Parking spaces
   - Floor information
 
-- **Features**:
-  - Pool, garden, elevator
-  - Security features
-  - Pet-friendly status
-  - Furnished status
+- **Structured Amenities** (mirroring webpage categories):
+  - **Exterior**: Covered parking, street parking, patio, garden, balcony, terrace
+  - **General**: Accessibility features, storage unit, laundry room, elevator, equipped kitchen, study, security
+  - **Policies**: Pet-friendly status, smoking policies
+  - **Recreation**: Pool, playground, tennis court, gym, sauna, games room, multipurpose room
 
 - **Media**:
   - Property images
@@ -229,8 +235,15 @@ The scraper extracts the following property data:
   - Video URLs
 
 - **Contact Information**:
-  - Agent name and contact details
-  - Agency information
+  - Agent name (parsed and cleaned)
+  - Agency name (separated from agent name)
+  - Agent contact details (phone, email)
+  - Message URL (send message button link)
+
+- **Metadata**:
+  - Listing date (calculated from "Published X ago" text)
+  - Scraped timestamp
+  - Source URLs
 
 ## Troubleshooting
 
@@ -317,6 +330,7 @@ For issues and questions:
 
 - **v1.0**: Initial release with basic scraping functionality
 - **v1.1**: Added session tracking and error logging
-- **v1.2**: Improved data extraction and database schema #   P r o p S c r a p e r 
+- **v1.2**: Improved data extraction and database schema
+- **v1.3**: Enhanced parsing with structured amenities, agent/agency separation, property type detection, listing date calculation, and GPS coordinates support #   P r o p S c r a p e r 
  
  

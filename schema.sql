@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS pulled_properties (
     postal_code VARCHAR(20),
     latitude DECIMAL(10, 8),
     longitude DECIMAL(11, 8),
+    gps_coordinates VARCHAR(255), -- Store GPS coordinates as string for easy parsing
     
     -- Property details
     price DECIMAL(15, 2),
@@ -43,9 +44,9 @@ CREATE TABLE IF NOT EXISTS pulled_properties (
     age_years INTEGER,
     construction_year INTEGER,
     
-    -- Features and amenities (stored as JSON for flexibility)
+    -- Features and amenities (structured to mirror webpage categories)
     features JSONB,
-    amenities JSONB,
+    amenities JSONB, -- Will contain structured categories like: {"exterior": ["covered_parking", "street_parking"], "general": ["accessibility_for_elderly", "laundry_room"], "policies": ["pets_allowed"], "recreation": ["pool", "tennis_court"]}
     
     -- Media
     main_image_url TEXT,
@@ -58,6 +59,7 @@ CREATE TABLE IF NOT EXISTS pulled_properties (
     agent_phone VARCHAR(50),
     agent_email VARCHAR(255),
     agency_name VARCHAR(255),
+    message_url TEXT, -- URL for "send message" button
     
     -- Property status
     status VARCHAR(50) DEFAULT 'active', -- active, sold, rented, inactive
@@ -69,17 +71,6 @@ CREATE TABLE IF NOT EXISTS pulled_properties (
     scraped_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()),
     page_number INTEGER,
     listing_date DATE,
-    
-    -- Additional fields for filtering
-    has_pool BOOLEAN DEFAULT false,
-    has_garden BOOLEAN DEFAULT false,
-    has_elevator BOOLEAN DEFAULT false,
-    has_balcony BOOLEAN DEFAULT false,
-    has_terrace BOOLEAN DEFAULT false,
-    has_gym BOOLEAN DEFAULT false,
-    has_security BOOLEAN DEFAULT false,
-    pet_friendly BOOLEAN DEFAULT false,
-    furnished BOOLEAN DEFAULT false,
     
     -- SEO and search optimization
     search_vector tsvector GENERATED ALWAYS AS (
@@ -99,6 +90,7 @@ CREATE INDEX IF NOT EXISTS idx_pulled_properties_scraped_at ON pulled_properties
 CREATE INDEX IF NOT EXISTS idx_pulled_properties_latitude ON pulled_properties(latitude) WHERE latitude IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_pulled_properties_longitude ON pulled_properties(longitude) WHERE longitude IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_pulled_properties_search ON pulled_properties USING GIN(search_vector);
+CREATE INDEX IF NOT EXISTS idx_pulled_properties_amenities ON pulled_properties USING GIN(amenities);
 
 -- Create a trigger to update the updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -160,4 +152,15 @@ CREATE POLICY "Enable update access for all users" ON scraping_sessions FOR UPDA
 
 CREATE POLICY "Enable read access for all users" ON scraping_errors FOR SELECT USING (true);
 CREATE POLICY "Enable insert access for all users" ON scraping_errors FOR INSERT WITH CHECK (true);
-CREATE POLICY "Enable update access for all users" ON scraping_errors FOR UPDATE USING (true); 
+CREATE POLICY "Enable update access for all users" ON scraping_errors FOR UPDATE USING (true);
+
+-- Migration script to remove old boolean amenity columns (run after updating the schema)
+-- ALTER TABLE pulled_properties DROP COLUMN IF EXISTS has_pool;
+-- ALTER TABLE pulled_properties DROP COLUMN IF EXISTS has_garden;
+-- ALTER TABLE pulled_properties DROP COLUMN IF EXISTS has_elevator;
+-- ALTER TABLE pulled_properties DROP COLUMN IF EXISTS has_balcony;
+-- ALTER TABLE pulled_properties DROP COLUMN IF EXISTS has_terrace;
+-- ALTER TABLE pulled_properties DROP COLUMN IF EXISTS has_gym;
+-- ALTER TABLE pulled_properties DROP COLUMN IF EXISTS has_security;
+-- ALTER TABLE pulled_properties DROP COLUMN IF EXISTS pet_friendly;
+-- ALTER TABLE pulled_properties DROP COLUMN IF EXISTS furnished; 

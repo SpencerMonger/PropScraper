@@ -210,6 +210,109 @@ BrowserConfig(
 ### Extraction Schema:
 CSS selector-based configuration for property data extraction with fallback selectors for different page layouts.
 
+## Enhanced Data Parsing Architecture (v1.3)
+
+### Intelligent Data Extraction Pipeline
+
+The scraper implements a sophisticated multi-stage parsing pipeline that transforms raw HTML into structured, categorized property data:
+
+#### Stage 1: Raw Data Extraction
+- **CSS Selectors**: Multi-tier selector strategy with fallbacks
+- **HTML Parsing**: BeautifulSoup with lxml backend for robust parsing
+- **Data Collection**: Extracts raw text, URLs, and attributes from both listing and detail pages
+
+#### Stage 2: Intelligent Processing
+- **Property Type Detection**: Keyword-based classification (house/apartment/lot) from title/description
+- **Agent/Agency Separation**: Heuristic parsing to separate agent names from agency names
+- **Temporal Parsing**: Converts "Published X ago" text to actual dates
+- **Location Parsing**: Splits location strings into address components
+- **Amenities Categorization**: Maps raw amenities to structured categories
+
+#### Stage 3: Data Normalization
+- **Text Cleaning**: Removes prefixes like "Published by", normalizes whitespace
+- **Currency Detection**: Multi-currency support with automatic detection
+- **Unit Conversion**: Area measurements with m² parsing
+- **Contact Extraction**: Regex-based phone and email extraction
+
+### Enhanced Parsing Methods
+
+#### Property Type Classification
+```python
+def extract_property_type_from_text(text: str) -> str:
+    # Keyword mapping for Spanish/English terms
+    type_mappings = {
+        'house': ['house', 'casa', 'home', 'villa', 'chalet'],
+        'apartment': ['apartment', 'departamento', 'depto', 'condo'],
+        'lot': ['lot', 'lote', 'terreno', 'land', 'plot']
+    }
+    # Returns classified type with fallback to 'house'
+```
+
+#### Agent/Agency Intelligence
+```python
+def extract_agent_and_agency_info(agent_text: str) -> Dict:
+    # Removes "Published by" prefixes
+    # Uses heuristics to separate person names from company names
+    # Handles multiple formats: "Agent\nAgency" or "Agency\nAgent"
+    # Extracts contact information with regex patterns
+```
+
+#### Temporal Data Processing
+```python
+def extract_listing_date(published_text: str, scraped_at: str) -> str:
+    # Parses: "Published 2 hours ago", "Published a minute ago"
+    # Supports: minutes, hours, days, weeks, months, years
+    # Calculates actual date by subtracting from scraped timestamp
+```
+
+#### Structured Amenities System
+```python
+def structure_amenities(amenities_data: Dict) -> Dict:
+    # Categories mirror website structure:
+    # - exterior: parking, garden, balcony, terrace
+    # - general: elevator, security, furnished, kitchen
+    # - policies: pets allowed, smoking rules
+    # - recreation: pool, gym, tennis court, games room
+    # Multi-language keyword matching (Spanish/English)
+```
+
+### Database Schema Integration
+
+#### New Schema Features (v1.3)
+```sql
+-- Enhanced columns for parsing improvements
+gps_coordinates VARCHAR(255)  -- Combined "lat,lng" format
+message_url TEXT             -- Send message button URL
+amenities JSONB             -- Structured categories instead of boolean flags
+
+-- Structured amenities example:
+{
+  "exterior": ["covered_parking", "garden"],
+  "general": ["elevator", "24_hour_security"],
+  "policies": ["pets_allowed"],
+  "recreation": ["pool", "gym"]
+}
+```
+
+#### Migration Strategy
+- **Backward Compatible**: Preserves existing data during schema updates
+- **Gradual Migration**: Optional removal of deprecated boolean columns
+- **Data Transformation**: Converts old boolean flags to new structured format
+
+### Quality Assurance
+
+#### Parsing Validation
+- **Unit Tests**: Comprehensive test suite for all parsing methods
+- **Edge Case Handling**: Graceful handling of malformed data
+- **Fallback Mechanisms**: Default values for missing or invalid data
+- **Error Logging**: Detailed logging for debugging parsing issues
+
+#### Data Integrity
+- **Input Sanitization**: Cleaning and validation of extracted text
+- **Type Validation**: Ensures data types match database schema
+- **Duplicate Detection**: Property ID generation prevents duplicates
+- **Consistency Checks**: Validates relationships between fields
+
 ## Performance Characteristics
 
 ### Scalability Features:
@@ -320,4 +423,30 @@ BeautifulSoup → HTML Parsing
 - **Documentation**: User guides and technical documentation
 - **Version Control**: Git-based version management
 
-This architecture provides a robust, scalable, and maintainable foundation for web scraping operations while respecting target site resources and handling common challenges like anti-bot measures. 
+## Version History & Evolution
+
+### v1.3 (Enhanced Parsing Architecture)
+- **Intelligent Property Type Detection**: Automatic classification from text content
+- **Agent/Agency Separation**: Smart parsing of contact information
+- **Structured Amenities System**: Categorized amenities mirroring website structure
+- **Temporal Data Processing**: Listing date calculation from relative timestamps
+- **Enhanced Location Handling**: GPS coordinates with reverse geocoding support
+- **Message URL Extraction**: Contact button link scraping
+- **Multi-language Support**: Spanish/English keyword recognition
+- **Improved Data Quality**: Advanced text cleaning and normalization
+
+### v1.2 (Schema & Session Tracking)
+- Database schema optimization with proper indexing
+- Session tracking and progress monitoring
+- Error logging and recovery mechanisms
+
+### v1.1 (Core Functionality)
+- Basic property data extraction
+- Supabase database integration
+- Rate limiting and anti-bot measures
+
+### v1.0 (Initial Release)
+- Foundation web scraping architecture
+- Crawl4AI integration with Playwright backend
+
+This architecture provides a robust, scalable, and maintainable foundation for web scraping operations while respecting target site resources and handling common challenges like anti-bot measures. The v1.3 enhancements significantly improve data quality and structure, making the scraped data more useful for analysis and application development. 
