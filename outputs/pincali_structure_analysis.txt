@@ -1,0 +1,65 @@
+PINCALI DETAILED STRUCTURE ANALYSIS
+============================================================
+
+URL: https://www.pincali.com/en/properties/residential-listings-for-sale-or-rent
+HTML Length: 296,005 characters
+Title: 413,954 Residential listings for sale or rent in Mexico | Pincali
+
+PROPERTY CONTAINER ANALYSIS
+----------------------------------------
+Articles (article): 0 found
+Divs with property class (div[class*="property"]): 53 found
+  Sample classes: ['search-control__button', 'property-type']
+  Sample attributes: ['class', 'data-button-pane-group-pane-container']
+  Sample text (first 100 chars): 
+
+
+Property type
+
+            Residential
+ 
+
+
+
+What types are you interested in?
+
+
+Residential
+Comme...
+
+Divs with listing class (div[class*="listing"]): 0 found
+Divs with card class (div[class*="card"]): 1 found
+  Sample classes: ['modal-content', 'account-content', 'card-content']
+  Sample attributes: ['class']
+  Sample text (first 100 chars): 
+
+
+
+
+
+
+
+ 
+
+
+
+Log in or create an account
+
+
+
+
+
+
+
+
+
+
+
+
+Continue with Facebook
+
+
+Continue with Google
+
+...
+

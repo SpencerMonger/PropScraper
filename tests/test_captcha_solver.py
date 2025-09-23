@@ -12,7 +12,7 @@ from pathlib import Path
 # Add parent directory to path to import modules
 sys.path.append(str(Path(__file__).parent.parent))
 
-from captcha_solver import CaptchaSolver, CrawlerWithCaptchaSolver
+from old.captcha_solver import CaptchaSolver, CrawlerWithCaptchaSolver
 from crawl4ai import BrowserConfig, CrawlerRunConfig
 
 # Enable detailed logging

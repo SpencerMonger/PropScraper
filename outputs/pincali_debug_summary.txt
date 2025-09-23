@@ -1,0 +1,11 @@
+PINCALI DEBUG SUMMARY
+==================================================
+
+URL: https://www.pincali.com/en/properties/residential-listings-for-sale-or-rent
+HTML Length: 292,843 characters
+Title: 413,937 Residential listings for sale or rent in Mexico | Pincali
+
+Potential property containers: 53
+Price elements: 27
+Images: 222
+Links: 303

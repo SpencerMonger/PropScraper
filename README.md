@@ -1,6 +1,9 @@
-# Inmuebles24.com Property Scraper
+# PropScraper - Multi-Platform Property Scraper
 
-A Python script that uses Crawl4AI to scrape the property listings from inmuebles24.com and store the data in a Supabase database.
+A Python-based web scraping system designed to extract property listings from real estate websites and store them in a Supabase database. Currently supports:
+
+- **Pincali.com** (Mexico) - Primary target
+- **Inmuebles24.com** (Mexico) - Legacy support
 
 ## Features
 
@@ -69,9 +72,21 @@ A Python script that uses Crawl4AI to scrape the property listings from inmueble
 
 ## Usage
 
-### Basic Usage
+### Pincali.com Scraper (Recommended)
 
-Run the scraper with default settings (10 pages):
+1. **Test the scraper first** (recommended):
+```bash
+python debug_pincali_scraper.py
+```
+
+2. **Run the main scraper**:
+```bash
+python pincali_scraper.py
+```
+
+### Inmuebles24.com Scraper (Legacy)
+
+Run the legacy scraper with default settings (10 pages):
 
 ```bash
 python inmuebles24_scraper.py
@@ -79,11 +94,11 @@ python inmuebles24_scraper.py
 
 ### Advanced Usage
 
-You can customize the scraping parameters by editing the `main()` function in `inmuebles24_scraper.py`:
+You can customize the scraping parameters by editing the `main()` function in either scraper:
 
 ```python
 async def main():
-    scraper = Inmuebles24Scraper()
+    scraper = PincaliScraper()  # or Inmuebles24Scraper()
     
     # Customize these parameters
     MAX_PAGES = 50      # Number of pages to scrape
@@ -92,9 +107,18 @@ async def main():
     await scraper.scrape_all_pages(max_pages=MAX_PAGES, start_page=START_PAGE)
 ```
 
-### Different Property Types
+### Pincali.com Property Types
 
-To scrape different property types, modify the `target_url` in the `Inmuebles24Scraper` class:
+The Pincali scraper automatically handles all property types from their main listing page:
+- Houses for sale and rent
+- Apartments for sale and rent  
+- Commercial properties
+- Land/lots
+- All property types available on the platform
+
+### Inmuebles24.com Property Types (Legacy)
+
+To scrape different property types from Inmuebles24, modify the `target_url` in the `Inmuebles24Scraper` class:
 
 ```python
 # For apartments/condos
