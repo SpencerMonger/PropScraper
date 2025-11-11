@@ -15,18 +15,51 @@ import os
 import json
 from datetime import datetime
 from dotenv import load_dotenv
-from supabase import create_client
+import psycopg2
+from urllib.parse import urlparse
 
 # Load environment variables
 load_dotenv()
 
 class SchemaDocGenerator:
     def __init__(self):
-        self.supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_ANON_KEY"))
+        # Parse the Supabase connection URL or build from components
+        supabase_url = os.getenv("SUPABASE_URL")
+        supabase_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_ANON_KEY")
+        
+        # Try to get direct database URL
+        db_url = os.getenv("DATABASE_URL")
+        
+        if db_url:
+            # Use direct database URL if available
+            self.connection_string = db_url
+        else:
+            # Build from Supabase URL
+            # Format: postgresql://postgres:[PASSWORD]@db.[PROJECT_REF].supabase.co:5432/postgres
+            project_ref = supabase_url.split('//')[1].split('.')[0] if supabase_url else None
+            db_password = os.getenv("SUPABASE_DB_PASSWORD") or os.getenv("DB_PASSWORD")
+            
+            if not project_ref or not db_password:
+                raise ValueError(
+                    "Missing database credentials. Please provide either:\n"
+                    "1. DATABASE_URL environment variable, or\n"
+                    "2. SUPABASE_URL and SUPABASE_DB_PASSWORD environment variables"
+                )
+            
+            self.connection_string = f"postgresql://postgres:{db_password}@db.{project_ref}.supabase.co:5432/postgres"
+        
+        print(f"Connecting to database...")
+        
+    def get_connection(self):
+        """Get a PostgreSQL database connection"""
+        return psycopg2.connect(self.connection_string)
         
     def get_tables_info(self):
         """Get all tables and their column information"""
         try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+            
             # Query to get all tables and columns
             query = """
             SELECT 
@@ -47,120 +80,68 @@ class SchemaDocGenerator:
                     ELSE NULL
                 END as foreign_key_reference
             FROM information_schema.tables t
-            LEFT JOIN information_schema.columns c ON t.table_name = c.table_name
-            LEFT JOIN (
-                SELECT 
-                    kcu.table_name,
-                    kcu.column_name
-                FROM information_schema.table_constraints tc
-                JOIN information_schema.key_column_usage kcu 
-                    ON tc.constraint_name = kcu.constraint_name
-                WHERE tc.constraint_type = 'PRIMARY KEY'
-            ) pk ON c.table_name = pk.table_name AND c.column_name = pk.column_name
+            LEFT JOIN information_schema.columns c ON t.table_name = c.table_name AND t.table_schema = c.table_schema
             LEFT JOIN (
                 SELECT 
                     kcu.table_name,
                     kcu.column_name,
+                    kcu.table_schema
+                FROM information_schema.table_constraints tc
+                JOIN information_schema.key_column_usage kcu 
+                    ON tc.constraint_name = kcu.constraint_name
+                    AND tc.table_schema = kcu.table_schema
+                WHERE tc.constraint_type = 'PRIMARY KEY'
+            ) pk ON c.table_name = pk.table_name 
+                AND c.column_name = pk.column_name
+                AND c.table_schema = pk.table_schema
+            LEFT JOIN (
+                SELECT 
+                    kcu.table_name,
+                    kcu.column_name,
+                    kcu.table_schema,
                     ccu.table_name AS foreign_table_name,
                     ccu.column_name AS foreign_column_name
                 FROM information_schema.table_constraints AS tc
                 JOIN information_schema.key_column_usage AS kcu
                     ON tc.constraint_name = kcu.constraint_name
+                    AND tc.table_schema = kcu.table_schema
                 JOIN information_schema.constraint_column_usage AS ccu
                     ON ccu.constraint_name = tc.constraint_name
+                    AND ccu.table_schema = tc.table_schema
                 WHERE tc.constraint_type = 'FOREIGN KEY'
-            ) fk ON c.table_name = fk.table_name AND c.column_name = fk.column_name
+            ) fk ON c.table_name = fk.table_name 
+                AND c.column_name = fk.column_name
+                AND c.table_schema = fk.table_schema
             WHERE t.table_schema = 'public' 
                 AND t.table_type = 'BASE TABLE'
                 AND c.column_name IS NOT NULL
             ORDER BY t.table_name, c.ordinal_position;
             """
             
-            # Try to execute the query using RPC if available
-            try:
-                response = self.supabase.rpc('execute_sql', {'query': query}).execute()
-                if response.data:
-                    return response.data
-            except:
-                pass
+            cursor.execute(query)
+            columns = [desc[0] for desc in cursor.description]
+            results = []
             
-            # Fallback: Get basic table information
-            print("Using fallback method to get schema information...")
-            return self._get_tables_fallback()
+            for row in cursor.fetchall():
+                results.append(dict(zip(columns, row)))
+            
+            cursor.close()
+            conn.close()
+            
+            print(f"✅ Found {len(results)} columns across tables")
+            return results
             
         except Exception as e:
-            print(f"Error getting tables info: {e}")
+            print(f"❌ Error getting tables info: {e}")
+            print(f"   Make sure you have the correct database credentials in your .env file")
             return []
-    
-    def _get_tables_fallback(self):
-        """Fallback method to get table information"""
-        tables_info = []
-        
-        # List of known tables from the project
-        known_tables = [
-            'properties', 'pulled_properties', 'properties_live', 'property_scrapes_staging',
-            'scraping_sessions', 'scraping_errors', 'sync_metadata', 'property_changes',
-            'validation_rules', 'property_stats', 'chat_conversations', 'chat_messages',
-            'users', 'user_favorites', 'todo_items', 'todo_lists'
-        ]
-        
-        for table_name in known_tables:
-            try:
-                # Try to get a sample record to understand the structure
-                response = self.supabase.table(table_name).select('*').limit(1).execute()
-                if response.data:
-                    sample_record = response.data[0]
-                    for column_name, value in sample_record.items():
-                        # Infer data type from value
-                        if value is None:
-                            data_type = 'unknown'
-                        elif isinstance(value, str):
-                            data_type = 'text'
-                        elif isinstance(value, int):
-                            data_type = 'integer'
-                        elif isinstance(value, float):
-                            data_type = 'numeric'
-                        elif isinstance(value, bool):
-                            data_type = 'boolean'
-                        elif isinstance(value, dict):
-                            data_type = 'jsonb'
-                        elif isinstance(value, list):
-                            data_type = 'jsonb'
-                        else:
-                            data_type = 'unknown'
-                        
-                        tables_info.append({
-                            'table_name': table_name,
-                            'table_type': 'BASE TABLE',
-                            'column_name': column_name,
-                            'data_type': data_type,
-                            'is_nullable': 'YES',
-                            'column_default': None,
-                            'is_primary_key': 'YES' if column_name == 'id' else 'NO',
-                            'foreign_key_reference': None
-                        })
-                else:
-                    # Table exists but is empty
-                    print(f"Table {table_name} is empty, getting count...")
-                    count_response = self.supabase.table(table_name).select('*', count='exact').execute()
-                    tables_info.append({
-                        'table_name': table_name,
-                        'table_type': 'BASE TABLE',
-                        'column_name': 'id',
-                        'data_type': 'uuid',
-                        'is_nullable': 'NO',
-                        'column_default': None,
-                        'is_primary_key': 'YES',
-                        'foreign_key_reference': None
-                    })
-            except Exception as e:
-                print(f"Could not access table {table_name}: {e}")
-        
-        return tables_info
     
     def get_indexes_info(self):
         """Get indexes information"""
         try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+            
             query = """
             SELECT 
                 schemaname,
@@ -172,22 +153,29 @@ class SchemaDocGenerator:
             ORDER BY tablename, indexname;
             """
             
-            try:
-                response = self.supabase.rpc('execute_sql', {'query': query}).execute()
-                if response.data:
-                    return response.data
-            except:
-                pass
+            cursor.execute(query)
+            columns = [desc[0] for desc in cursor.description]
+            results = []
             
-            return []
+            for row in cursor.fetchall():
+                results.append(dict(zip(columns, row)))
+            
+            cursor.close()
+            conn.close()
+            
+            print(f"✅ Found {len(results)} indexes")
+            return results
             
         except Exception as e:
-            print(f"Error getting indexes info: {e}")
+            print(f"⚠️  Error getting indexes info: {e}")
             return []
     
     def get_functions_info(self):
         """Get functions and procedures information"""
         try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+            
             query = """
             SELECT 
                 routine_name,
@@ -199,17 +187,21 @@ class SchemaDocGenerator:
             ORDER BY routine_name;
             """
             
-            try:
-                response = self.supabase.rpc('execute_sql', {'query': query}).execute()
-                if response.data:
-                    return response.data
-            except:
-                pass
+            cursor.execute(query)
+            columns = [desc[0] for desc in cursor.description]
+            results = []
             
-            return []
+            for row in cursor.fetchall():
+                results.append(dict(zip(columns, row)))
+            
+            cursor.close()
+            conn.close()
+            
+            print(f"✅ Found {len(results)} functions/procedures")
+            return results
             
         except Exception as e:
-            print(f"Error getting functions info: {e}")
+            print(f"⚠️  Error getting functions info: {e}")
             return []
     
     def generate_markdown_doc(self):

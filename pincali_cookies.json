@@ -1,0 +1,122 @@
+[
+  {
+    "name": "_GRECAPTCHA",
+    "value": "09ADiQh0dz5WVSSrqlInBkArG96vS1YYrDNjORyZ_TzwIuqXd9LmVzTRLIGaa1cCEieu0xQB_csph4_WqpsUXlH2c",
+    "domain": "www.google.com",
+    "path": "/recaptcha",
+    "expires": 1778449249.812348,
+    "httpOnly": true,
+    "secure": true,
+    "sameSite": "None"
+  },
+  {
+    "name": "rp",
+    "value": "www.pincali.com",
+    "domain": "www.pincali.com",
+    "path": "/",
+    "expires": 1762983635.639118,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "source",
+    "value": "www.pincali.com",
+    "domain": "www.pincali.com",
+    "path": "/",
+    "expires": 1778535635.639203,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "device_id",
+    "value": "eyJfcmFpbHMiOnsibWVzc2FnZSI6IklqUTRNV1JpTW1RNExXWXdOVGd0TkdGaU15MWlaVGcxTFRrNE1tRTROVEZsTmpVNVppST0iLCJleHAiOm51bGwsInB1ciI6ImNvb2tpZS5kZXZpY2VfaWQifX0%3D--5b885e15c4fd890d406b61b66cb50d2becc80986",
+    "domain": "www.pincali.com",
+    "path": "/",
+    "expires": 1797457235.639215,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "set_country",
+    "value": "mx",
+    "domain": ".www.pincali.com",
+    "path": "/",
+    "expires": 1794433272.20165,
+    "httpOnly": false,
+    "secure": true,
+    "sameSite": "None"
+  },
+  {
+    "name": "_session_id",
+    "value": "2870d26d1815aecc5412e92e875ecd07",
+    "domain": "www.pincali.com",
+    "path": "/",
+    "expires": 1763502072.201691,
+    "httpOnly": true,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "_fbp",
+    "value": "fb.1.1762897236074.28148989341411015",
+    "domain": ".pincali.com",
+    "path": "/",
+    "expires": 1770673272,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "_ga",
+    "value": "GA1.1.1639998211.1762897236",
+    "domain": ".pincali.com",
+    "path": "/",
+    "expires": 1797457272.293277,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "language",
+    "value": "en",
+    "domain": ".www.pincali.com",
+    "path": "/",
+    "expires": 1794433272.201674,
+    "httpOnly": false,
+    "secure": true,
+    "sameSite": "None"
+  },
+  {
+    "name": "last_login_email",
+    "value": "JEaoFxUD3sT7biIvfegqWKxDWQZe1yxZzFRxQZx1w0zCiyR1%2BB2y7HQI2AiDGx4yZDPaOHDv7RDgX%2FrOEKV1lpv440uFjdpo%2BdF%2B%2FboCWlPK3ZmyztnnZqm2zN%2FHlxnAnYMsvAV6%2BooQIWP%2FUQvqPWS6--AtlQacDaT9ioTJpS--56Ni5nd2rhwkDt6tFTi0Yg%3D%3D",
+    "domain": "www.pincali.com",
+    "path": "/",
+    "expires": 1797457272.201569,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "_ga_RTLEGFTBJZ",
+    "value": "GS2.1.s1762897236$o1$g1$t1762897272$j24$l0$h0",
+    "domain": ".pincali.com",
+    "path": "/",
+    "expires": 1797457272.294866,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "_dd_s",
+    "value": "logs=1&id=3a4ad8c8-36e8-4694-a06e-c15d2503119f&created=1762897235955&expire=1762898172278",
+    "domain": "www.pincali.com",
+    "path": "/",
+    "expires": 1762898178,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Strict"
+  }
+]

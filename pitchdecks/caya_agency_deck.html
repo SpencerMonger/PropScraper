@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Caya - Investor Pitch Deck</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: #ECF0F3;
+            overflow: hidden;
+            color: #1a1a2e;
+            cursor: default;
+        }
+        
+        .slide-container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+        
+        .slide {
+            width: 100%;
+            height: 100%;
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+        
+        .slide.active {
+            display: block;
+            animation: fadeIn 0.5s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        .slide-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            background: radial-gradient(ellipse at top left, #8238EA08 0%, transparent 50%),
+                        radial-gradient(ellipse at bottom right, #FA570808 0%, transparent 50%),
+                        #ECF0F3;
+        }
+        
+        .slide-content {
+            position: relative;
+            z-index: 1;
+            min-height: 100%;
+            padding: 80px 100px 120px 100px;
+        }
+        
+        .logo-corner {
+            position: fixed;
+            top: 40px;
+            right: 100px;
+            z-index: 100;
+        }
+        
+        .hero-title-container {
+            display: flex;
+            align-items: center;
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+        
+        .hero-title-container h1 {
+            margin-bottom: 0;
+            background: linear-gradient(135deg, #FA5708, #FDBD09);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .slide-number {
+            position: fixed;
+            top: 40px;
+            left: 100px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #8238EA;
+            letter-spacing: 2px;
+            z-index: 100;
+        }
+        
+        .click-area {
+            position: fixed;
+            top: 0;
+            bottom: 0;
+            width: 15%;
+            z-index: 5;
+            cursor: pointer;
+            pointer-events: auto;
+        }
+        
+        .click-left {
+            left: 0;
+        }
+        
+        .click-left:hover {
+            background: linear-gradient(90deg, rgba(130, 56, 234, 0.05), transparent);
+        }
+        
+        .click-right {
+            right: 0;
+        }
+        
+        .click-right:hover {
+            background: linear-gradient(270deg, rgba(130, 56, 234, 0.05), transparent);
+        }
+        
+        h1 {
+            font-family: 'Poppins', sans-serif;
+            font-size: 72px;
+            font-weight: 900;
+            color: #06153C;
+            margin-bottom: 30px;
+            letter-spacing: -2px;
+            line-height: 1.1;
+        }
+        
+        h2 {
+            font-family: 'Poppins', sans-serif;
+            font-size: 42px;
+            font-weight: 700;
+            color: #1a1a2e;
+            margin-bottom: 25px;
+            letter-spacing: -1px;
+        }
+        
+        h3 {
+            font-family: 'Poppins', sans-serif;
+            font-size: 28px;
+            font-weight: 600;
+            color: #8238EA;
+            margin-bottom: 15px;
+        }
+        
+        p, li {
+            font-family: 'Poppins', sans-serif;
+            font-size: 18px;
+            line-height: 1.8;
+            color: rgba(26,26,46,0.85);
+        }
+        
+        .hero-section {
+            display: grid;
+            grid-template-columns: 1.2fr 0.8fr;
+            gap: 80px;
+            align-items: center;
+            min-height: calc(100vh - 160px);
+        }
+        
+        .hero-text h1 {
+            font-size: 84px;
+        }
+        
+        .hero-subtitle {
+            font-size: 24px;
+            line-height: 1.7;
+            margin-bottom: 20px;
+            color: rgba(26,26,46,0.9);
+        }
+        
+        .highlight {
+            color: #FDBD09;
+            font-weight: 700;
+        }
+        
+        .accent-purple {
+            color: #8238EA;
+            font-weight: 700;
+        }
+        
+        .accent-orange {
+            color: #FA5708;
+            font-weight: 700;
+        }
+        
+        .phone-showcase {
+            position: relative;
+            height: 700px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .phone-mockup {
+            width: 340px;
+            height: 680px;
+            background: linear-gradient(135deg, #8238EA, #FA5708);
+            border-radius: 45px;
+            padding: 10px;
+            box-shadow: 0 50px 100px rgba(130, 56, 234, 0.3),
+                        0 20px 40px rgba(250, 87, 8, 0.2);
+            position: relative;
+            z-index: 2;
+        }
+        
+        .phone-screen {
+            width: 100%;
+            height: 100%;
+            background: #1a1a2e;
+            border-radius: 38px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .phone-screen img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.8; }
+        }
+        
+        @keyframes fadeInOut {
+            0%, 100% { opacity: 0.7; }
+            50% { opacity: 1; }
+        }
+        
+        .animated-content {
+            animation: pulse 3s ease-in-out infinite;
+        }
+        
+        .analyzing-text {
+            animation: fadeInOut 2s ease-in-out infinite;
+        }
+        
+        .glow-circle {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            z-index: 1;
+            pointer-events: none;
+        }
+        
+        .glow-1 {
+            width: 400px;
+            height: 400px;
+            background: #8238EA;
+            top: -100px;
+            right: -100px;
+            opacity: 0.15;
+        }
+        
+        .glow-2 {
+            width: 350px;
+            height: 350px;
+            background: #FA5708;
+            bottom: -80px;
+            right: 50px;
+            opacity: 0.12;
+        }
+        
+        .stat-card {
+            background: rgba(255,255,255,0.6);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(130, 56, 234, 0.2);
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            transition: all 0.3s;
+        }
+        
+        .stat-card:hover {
+            background: rgba(255,255,255,0.8);
+            transform: translateY(-5px);
+            border-color: #8238EA;
+        }
+        
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 35px;
+            margin-top: 50px;
+        }
+        
+        .feature-card {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.6));
+            border: 1px solid rgba(130, 56, 234, 0.2);
+            border-radius: 24px;
+            padding: 40px 35px;
+            transition: all 0.4s;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, #8238EA, #FA5708, #FDBD09);
+            transform: scaleX(0);
+            transition: transform 0.4s;
+        }
+        
+        .feature-card:hover {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.85));
+            transform: translateY(-8px);
+            border-color: #8238EA;
+        }
+        
+        .feature-card:hover::before {
+            transform: scaleX(1);
+        }
+        
+        .feature-icon {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #8238EA, #FA5708);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            margin-bottom: 20px;
+        }
+        
+        .two-col-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 60px;
+            margin-top: 50px;
+        }
+        
+        .problem-section {
+            background: rgba(255,255,255,0.7);
+            border: 1px solid rgba(130, 56, 234, 0.2);
+            border-radius: 24px;
+            padding: 45px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .problem-section h3 {
+            font-size: 32px;
+            margin-bottom: 30px;
+        }
+        
+        .problem-list {
+            list-style: none;
+        }
+        
+        .problem-list li {
+            padding: 16px 0;
+            padding-left: 40px;
+            position: relative;
+            font-size: 17px;
+            line-height: 1.6;
+            color: rgba(26,26,46,0.8);
+            border-bottom: 1px solid rgba(130, 56, 234, 0.1);
+        }
+        
+        .problem-list li:last-child {
+            border-bottom: none;
+        }
+        
+        .problem-list li::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 8px;
+            height: 8px;
+            background: #FA5708;
+            border-radius: 50%;
+            box-shadow: 0 0 10px rgba(250, 87, 8, 0.5);
+        }
+        
+        .founder-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 80px;
+            margin-top: 60px;
+        }
+        
+        .founder-card {
+            text-align: center;
+            background: rgba(255,255,255,0.7);
+            border: 1px solid rgba(130, 56, 234, 0.2);
+            border-radius: 24px;
+            padding: 50px;
+        }
+        
+        .founder-avatar {
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            margin: 0 auto 30px;
+            box-shadow: 0 20px 60px rgba(130, 56, 234, 0.3);
+            border: 4px solid #8238EA;
+            overflow: hidden;
+        }
+        
+        .founder-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .founder-name {
+            font-size: 32px;
+            font-weight: 800;
+            margin-bottom: 8px;
+            color: #1a1a2e;
+        }
+        
+        .founder-title {
+            font-size: 20px;
+            color: #8238EA;
+            font-weight: 600;
+            margin-bottom: 25px;
+        }
+        
+        .founder-bio {
+            text-align: left;
+            list-style: none;
+            font-size: 16px;
+            line-height: 1.8;
+        }
+        
+        .founder-bio li {
+            padding: 10px 0;
+            padding-left: 30px;
+            position: relative;
+            color: rgba(26,26,46,0.75);
+        }
+        
+        .founder-bio li::before {
+            content: '→';
+            position: absolute;
+            left: 0;
+            color: #8238EA;
+            font-weight: 700;
+        }
+        
+        .closing-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: calc(100vh - 160px);
+            text-align: center;
+        }
+        
+        .closing-screen h1 {
+            font-size: 96px;
+            margin-bottom: 40px;
+        }
+        
+        .metric-showcase {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 30px;
+            margin-top: 60px;
+        }
+        
+        .metric-card {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.7));
+            border: 2px solid #8238EA;
+            border-radius: 20px;
+            padding: 40px 30px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+        }
+        
+        .metric-value {
+            font-size: 48px;
+            font-weight: 900;
+            color: #FDBD09;
+            margin-bottom: 15px;
+        }
+        
+        .metric-description {
+            font-size: 15px;
+            color: rgba(26,26,46,0.8);
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide-container">
+        <div class="slide-bg"></div>
+        
+        <div class="slide-number" id="slideNumber">01 / 08</div>
+        <div class="logo-corner">
+            <svg width="60" height="64" viewBox="0 0 146 155" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path fill-rule="evenodd" clip-rule="evenodd" d="M72.6143 128.654H25.4189V154.067H119.812V128.654H72.6143Z" fill="#FDBD09"/>
+                <path fill-rule="evenodd" clip-rule="evenodd" d="M25.4189 128.653V56.5954L48.4061 43.3246L72.6142 29.349V0.000732422L25.4189 27.2496L0 41.9225V67.6561V71.2683V128.653H25.4189Z" fill="#8238EA"/>
+                <path fill-rule="evenodd" clip-rule="evenodd" d="M72.6143 29.349V58.6948L88.138 67.6561L119.812 85.9411V128.653H145.229V100.617V71.2683L138.971 67.6561L119.812 56.5954L72.6143 29.349Z" fill="#FA5708"/>
+            </svg>
+        </div>
+        
+        <div class="click-area click-left" onclick="changeSlide(-1)"></div>
+        <div class="click-area click-right" onclick="changeSlide(1)"></div>
+
+        <!-- Slide 1: Hero -->
+        <div class="slide active">
+            <div class="slide-content">
+                <div class="hero-section">
+                    <div class="hero-text">
+                        <div class="hero-title-container">
+                            <svg width="80" height="85" viewBox="0 0 146 155" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path fill-rule="evenodd" clip-rule="evenodd" d="M72.6143 128.654H25.4189V154.067H119.812V128.654H72.6143Z" fill="#FDBD09"/>
+                                <path fill-rule="evenodd" clip-rule="evenodd" d="M25.4189 128.653V56.5954L48.4061 43.3246L72.6142 29.349V0.000732422L25.4189 27.2496L0 41.9225V67.6561V71.2683V128.653H25.4189Z" fill="#8238EA"/>
+                                <path fill-rule="evenodd" clip-rule="evenodd" d="M72.6143 29.349V58.6948L88.138 67.6561L119.812 85.9411V128.653H145.229V100.617V71.2683L138.971 67.6561L119.812 56.5954L72.6143 29.349Z" fill="#FA5708"/>
+                            </svg>
+                            <h1>CAYA</h1>
+                        </div>
+                        <p class="hero-subtitle">
+                            The first <span class="highlight">mobile-first real estate platform</span> revolutionizing Latin America's fragmented home buying market.
+                        </p>
+                        <p class="hero-subtitle">
+                            Our AI-powered <span class="accent-purple">Mini-Agents increase conversion from leads to property tours</span> by providing 24/7 personalized support.
+                        </p>
+                        <p class="hero-subtitle">
+                            <span class="accent-orange">Our mission: Become the #1 online marketplace for home buying in Latin America</span> and increase online participation in life's biggest transaction.
+                        </p>
+                    </div>
+                    <div class="phone-showcase">
+                        <div class="glow-circle glow-1"></div>
+                        <div class="glow-circle glow-2"></div>
+                        <div class="phone-mockup">
+                            <div class="phone-screen">
+                                <div id="lottie-animation" style="width: 100%; height: 100%; background: linear-gradient(135deg, #1a1a2e 0%, #2d3748 100%); display: flex; align-items: center; justify-content: center; flex-direction: column; padding: 40px;">
+                                    <div class="animated-content" style="text-align: center; color: white;">
+                                        <div style="font-size: 48px; margin-bottom: 30px;">🏠</div>
+                                        <div style="font-size: 20px; font-weight: 600; margin-bottom: 20px; color: #FDBD09;">Emmi AI Assistant</div>
+                                        <div class="analyzing-text" style="font-size: 16px; line-height: 1.6; margin-bottom: 30px;">Analyzing market data...</div>
+                                        <div style="background: linear-gradient(135deg, #8238EA, #FA5708); color: white; padding: 12px 30px; border-radius: 25px; font-weight: 600; margin-top: 20px;">Browse Homes</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 2: Problem -->
+        <div class="slide">
+            <div class="slide-content">
+                <h1>The Problem</h1>
+                <div class="two-col-layout">
+                    <div class="problem-section">
+                        <h3 style="color: #FDBD09;">Users</h3>
+                        <ul class="problem-list">
+                            <li>Information fragmented across multiple platforms</li>
+                            <li><strong>Response times depend on the advisor.</strong></li>
+                            <li>Inefficiency in the search process</li>
+                            <li>There is no real estate app based on artificial intelligence.</li>
+                            <li>The process is not digitalized.</li>
+                        </ul>
+                    </div>
+                    <div class="problem-section">
+                        <h3 style="color: #FA5708;">Agencies</h3>
+                        <ul class="problem-list">
+                            <li>High costs just for listing properties</li>
+                            <li>CPL between $400 and $600</li>
+                            <li>Low-qualified leads</li>
+                            <li>There are no technological tools for communicating with leads to make the process more efficient.</li>
+                            <li>There is no centralized platform for finding property options for customers.</li>
+                            <li><strong>Low conversion from lead to visit</strong></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 3: Solution for Users -->
+        <div class="slide">
+            <div class="slide-content">
+                <h1 style="margin-bottom: 20px;">Solution for Users</h1>
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon">🤖</div>
+                        <h3>AI-Powered Mobile Experience</h3>
+                        <p>Tailor your property search to your preferences. Our AI learns what appeals to you and suggests personalized options using intelligent market analysis.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🏘️</div>
+                        <h3>National Inventory</h3>
+                        <p>Access consolidated inventory from independent agencies, developers, and brokers across Mexico through direct partnerships and MLS integration.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">💬</div>
+                        <h3>'Mini-Agents' Experience</h3>
+                        <p>Emmi, our virtual agent, assists 24/7 with search, communication, and education. <span class="accent-purple">Dramatically increases lead conversion rates.</span></p>
+                    </div>
+                </div>
+                <div class="stat-card" style="margin-top: 50px; max-width: 800px; margin-left: auto; margin-right: auto;">
+                    <p style="font-size: 20px;">Our AI analyzes market trends and personalizes recommendations, creating a truly tailored home-buying experience that increases engagement and conversion.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 4: Solution for Agencies -->
+        <div class="slide">
+            <div class="slide-content">
+                <h1 style="margin-bottom: 50px;">Solution for Agencies</h1>
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon">💰</div>
+                        <h3>Zero Listing Fees</h3>
+                        <p><span class="highlight">No listing fees. Ever.</span> Pay-per-lead and pay-per-visit pricing means agencies only pay for qualified results. Emmi's profiling ensures highly targeted leads at lower cost.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🤝</div>
+                        <h3>Unified Network</h3>
+                        <p>Caya consolidates independent agencies and brokers, fostering collaboration to generate synergies, maximize results through shared inventory, and build a professional community.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">⚡</div>
+                        <h3>24/7 Lead Support</h3>
+                        <p>Agents no longer depend on availability. Emmi provides timely assistance as a universal agent. <span class="accent-purple">Improves conversion, lead quality, and helps bottom performers close more sales.</span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 5 (originally 8): Competitive Advantages -->
+        <div class="slide">
+            <div class="slide-content">
+                <h1>Competitive Advantages</h1>
+                <div class="feature-grid" style="grid-template-columns: repeat(2, 1fr); margin-top: 60px;">
+                    <div class="feature-card">
+                        <div class="feature-icon">🚀</div>
+                        <h3>Mobile Native</h3>
+                        <p>Zillow does not operate in Latin America, and our main competitor doesn't even leverage AI.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">💎</div>
+                        <h3>Superior Business Model</h3>
+                        <p><span class="highlight">Zero listing fees for agencies.</span> Performance-based pricing optimizes costs while our AI profiling delivers higher-quality leads than any competitor.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">👥</div>
+                        <h3>Expert Team</h3>
+                        <p>One co-founder owns a real estate agency (deep industry insight). The other successfully built and sold prop-tech companies in the US (proven execution).</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">⚙️</div>
+                        <h3>Cutting-Edge AI</h3>
+                        <p>Our mini-agent Emmi provides 24/7 support with advanced profiling, dramatically improving conversion rates and user experience beyond static portals.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 6 (originally 11): Revenue Model -->
+        <div class="slide">
+            <div class="slide-content">
+                <h1>Pricing CPL and CPV</h1>
+                <div class="metric-showcase">
+                    <div class="metric-card" style="border-color: #8238EA;">
+                        <h3 style="font-size: 22px; margin-bottom: 20px;">Qualified Lead</h3>
+                        <div class="metric-value">$100</div>
+                        <div class="metric-description">MXN per qualified lead<br/>• User/Lead contact<br/>• Emmi attention<br/>• Lead profiling</div>
+                    </div>
+                    <div class="metric-card" style="border-color: #FA5708;">
+                        <h3 style="font-size: 22px; margin-bottom: 20px;">Property Visit</h3>
+                        <div class="metric-value">$200</div>
+                        <div class="metric-description">MXN per scheduled visit<br/>• Calendar appointment<br/>• Visit confirmation<br/>• Enhanced lead info</div>
+                    </div>
+                    <div class="metric-card" style="border-color: #FDBD09;">
+                        <h3 style="font-size: 22px; margin-bottom: 20px;">Listing Fee</h3>
+                        <div class="metric-value" style="color: #22c55e;">$0</div>
+                        <div class="metric-description" style="color: #22c55e;">Zero listing fees<br/>Performance-based only<br/>Aligned incentives</div>
+                    </div>
+                    <div class="metric-card" style="border-color: #8238EA;">
+                        <h3 style="font-size: 22px; margin-bottom: 20px;">Free tools</h3>
+                        <div class="metric-value">$0</div>
+                        <div class="metric-description">Using Emmi Communication<br/>Consolidated property Search</div>
+                    </div>
+                </div>
+                <div style="margin-top: 50px; text-align: center;">
+                    <div class="stat-card" style="display: inline-block; max-width: 800px;">
+                        <p style="font-size: 20px;"><span class="highlight">Performance-based model aligns incentives:</span> Agencies only pay for results, while we're motivated to deliver maximum lead quality and conversion.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 7 (originally 14): Team -->
+        <div class="slide">
+            <div class="slide-content">
+                <h1>Founding Team</h1>
+                <div class="founder-grid">
+                    <div class="founder-card">
+                        <div class="founder-avatar">
+                            <img src="https://i.imgur.com/C9nFWuO.jpg" alt="Edgar Erives" style="width: 100%; height: 100%; object-fit: cover;">
+                        </div>
+                        <div class="founder-name">Edgar Erives</div>
+                        <div class="founder-title">Co-Founder</div>
+                        <ul class="founder-bio">
+                            <li>Industrial Engineer (ITESM)</li>
+                            <li>Ex Line, Ex Alameda, Ex Mudafy</li>
+                            <li>Satori Home founder</li>
+                            <li>Owns & operates real estate agency</li>
+                            <li>Deep industry expertise and relationships</li>
+                        </ul>
+                        <p style="margin-top: 25px; font-size: 15px; color: #8238EA; font-weight: 600;">
+                            🔗 <a href="https://www.linkedin.com/in/edgar-erives-88baaa88/" target="_blank" style="color: #8238EA; text-decoration: none;">LinkedIn Profile</a>
+                        </p>
+                    </div>
+                    <div class="founder-card">
+                        <div class="founder-avatar">
+                            <img src="https://i.imgur.com/2myLihf.jpg" alt="Spencer Hall">
+                        </div>
+                        <div class="founder-name">Spencer Hall</div>
+                        <div class="founder-title">Co-Founder</div>
+                        <ul class="founder-bio">
+                            <li>Founded & sold SparkTalk</li>
+                            <li>Founded & sold Recruitable</li>
+                            <li>Founded & exited Aidium</li>
+                            <li>8 Years in the prop-tech space</li>
+                        </ul>
+                        <p style="margin-top: 25px; font-size: 15px; color: #8238EA; font-weight: 600;">
+                            🔗 <a href="https://www.linkedin.com/in/spencer-hall-318a69130/" target="_blank" style="color: #8238EA; text-decoration: none;">LinkedIn Profile</a>
+                        </p>
+                    </div>
+                </div>
+                <div style="margin-top: 50px; text-align: center;">
+                    <div class="stat-card" style="display: inline-block; max-width: 800px; background: linear-gradient(135deg, #8238EA, #9d5aff); border: none;">
+                        <h3 style="color: #FDBD09; font-size: 24px; margin-bottom: 15px;">Complementary Expertise</h3>
+                        <p style="font-size: 18px; color: rgba(255,255,255,0.95);">One founder brings on-the-ground real estate operations expertise, the other brings proven prop-tech startup success. Together: industry knowledge + execution capability.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 8 (originally 15): Closing -->
+        <div class="slide">
+            <div class="slide-content">
+                <div class="closing-screen">
+                    <svg width="200" height="212" viewBox="0 0 146 155" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-bottom: 50px; filter: drop-shadow(0 20px 60px rgba(130, 56, 234, 0.3));">
+                        <path fill-rule="evenodd" clip-rule="evenodd" d="M72.6143 128.654H25.4189V154.067H119.812V128.654H72.6143Z" fill="#FDBD09"/>
+                        <path fill-rule="evenodd" clip-rule="evenodd" d="M25.4189 128.653V56.5954L48.4061 43.3246L72.6142 29.349V0.000732422L25.4189 27.2496L0 41.9225V67.6561V71.2683V128.653H25.4189Z" fill="#8238EA"/>
+                        <path fill-rule="evenodd" clip-rule="evenodd" d="M72.6143 29.349V58.6948L88.138 67.6561L119.812 85.9411V128.653H145.229V100.617V71.2683L138.971 67.6561L119.812 56.5954L72.6143 29.349Z" fill="#FA5708"/>
+                    </svg>
+                    <h1 style="font-size: 96px; margin-bottom: 35px;">Thank You</h1>
+                    <h2 style="font-size: 42px; margin-bottom: 50px; color: #FDBD09;">Let's Build the Future of Latin American Real Estate</h2>
+                    <p style="font-size: 22px; max-width: 800px; line-height: 1.8; opacity: 0.95; margin: 0 auto;">
+                        Join us in capturing the massive blue ocean opportunity to digitize home buying in Latin America. With the right partner, we'll become the dominant mobile real estate platform across the region.
+                    </p>
+                    <div style="margin-top: 60px;">
+                        <p style="font-size: 18px; color: #8238EA; font-weight: 700; margin-bottom: 15px;">Contact Us</p>
+                        <p style="font-size: 18px; opacity: 0.9;">contacto@caya.com.mx | <a href="https://www.caya.com.mx" target="_blank" style="color: #FDBD09; text-decoration: none; transition: color 0.3s;" onmouseover="this.style.color='#8238EA'" onmouseout="this.style.color='#FDBD09'">www.caya.com.mx</a></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentSlide = 0;
+        const slides = document.querySelectorAll('.slide');
+        const totalSlides = slides.length;
+        const logoCorner = document.querySelector('.logo-corner');
+
+        function showSlide(n) {
+            if (n < 0 || n >= totalSlides) return;
+            
+            slides[currentSlide].classList.remove('active');
+            currentSlide = n;
+            slides[currentSlide].classList.add('active');
+            
+            const slideNum = String(currentSlide + 1).padStart(2, '0');
+            document.getElementById('slideNumber').textContent = `${slideNum} / 08`;
+            
+            // Hide logo on first slide, show on all others
+            if (currentSlide === 0) {
+                logoCorner.style.display = 'none';
+            } else {
+                logoCorner.style.display = 'block';
+            }
+        }
+
+        function changeSlide(direction) {
+            const newSlide = currentSlide + direction;
+            if (newSlide >= 0 && newSlide < totalSlides) {
+                showSlide(newSlide);
+            }
+        }
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'ArrowLeft') {
+                changeSlide(-1);
+            } else if (e.key === 'ArrowRight') {
+                changeSlide(1);
+            }
+        });
+
+        showSlide(0);
+    </script>
+</body>
+</html>
+

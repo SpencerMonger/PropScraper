@@ -1,0 +1,1362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Caya - Investor Pitch Deck</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: #ECF0F3;
+            overflow: hidden;
+            color: #1a1a2e;
+            cursor: default;
+        }
+        
+        .slide-container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+        
+        .slide {
+            width: 100%;
+            height: 100%;
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+        
+        .slide.active {
+            display: block;
+            animation: fadeIn 0.5s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        .slide-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            background: radial-gradient(ellipse at top left, #8238EA08 0%, transparent 50%),
+                        radial-gradient(ellipse at bottom right, #FA570808 0%, transparent 50%),
+                        #ECF0F3;
+        }
+        
+        .slide-content {
+            position: relative;
+            z-index: 1;
+            min-height: 100%;
+            padding: 80px 100px 120px 100px;
+        }
+        
+        .logo-corner {
+            position: fixed;
+            top: 40px;
+            right: 100px;
+            z-index: 100;
+        }
+        
+        .hero-title-container {
+            display: flex;
+            align-items: center;
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+        
+        .hero-title-container h1 {
+            margin-bottom: 0;
+            background: linear-gradient(135deg, #FA5708, #FDBD09);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .slide-number {
+            position: fixed;
+            top: 40px;
+            left: 100px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #8238EA;
+            letter-spacing: 2px;
+            z-index: 100;
+        }
+        
+        .click-area {
+            position: fixed;
+            top: 0;
+            bottom: 0;
+            width: 15%;
+            z-index: 5;
+            cursor: pointer;
+            pointer-events: auto;
+        }
+        
+        .click-left {
+            left: 0;
+        }
+        
+        .click-left:hover {
+            background: linear-gradient(90deg, rgba(130, 56, 234, 0.05), transparent);
+        }
+        
+        .click-right {
+            right: 0;
+        }
+        
+        .click-right:hover {
+            background: linear-gradient(270deg, rgba(130, 56, 234, 0.05), transparent);
+        }
+        
+        h1 {
+            font-family: 'Poppins', sans-serif;
+            font-size: 72px;
+            font-weight: 900;
+            color: #06153C;
+            margin-bottom: 30px;
+            letter-spacing: -2px;
+            line-height: 1.1;
+        }
+        
+        h2 {
+            font-family: 'Poppins', sans-serif;
+            font-size: 42px;
+            font-weight: 700;
+            color: #1a1a2e;
+            margin-bottom: 25px;
+            letter-spacing: -1px;
+        }
+        
+        h3 {
+            font-family: 'Poppins', sans-serif;
+            font-size: 28px;
+            font-weight: 600;
+            color: #8238EA;
+            margin-bottom: 15px;
+        }
+        
+        p, li {
+            font-family: 'Poppins', sans-serif;
+            font-size: 18px;
+            line-height: 1.8;
+            color: rgba(26,26,46,0.85);
+        }
+        
+        .hero-section {
+            display: grid;
+            grid-template-columns: 1.2fr 0.8fr;
+            gap: 80px;
+            align-items: center;
+            min-height: calc(100vh - 160px);
+        }
+        
+        .hero-text h1 {
+            font-size: 84px;
+        }
+        
+        .hero-subtitle {
+            font-size: 24px;
+            line-height: 1.7;
+            margin-bottom: 20px;
+            color: rgba(26,26,46,0.9);
+        }
+        
+        .highlight {
+            color: #FDBD09;
+            font-weight: 700;
+        }
+        
+        .accent-purple {
+            color: #8238EA;
+            font-weight: 700;
+        }
+        
+        .accent-orange {
+            color: #FA5708;
+            font-weight: 700;
+        }
+        
+        .phone-showcase {
+            position: relative;
+            height: 700px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .phone-mockup {
+            width: 340px;
+            height: 680px;
+            background: linear-gradient(135deg, #8238EA, #FA5708);
+            border-radius: 45px;
+            padding: 10px;
+            box-shadow: 0 50px 100px rgba(130, 56, 234, 0.3),
+                        0 20px 40px rgba(250, 87, 8, 0.2);
+            position: relative;
+            z-index: 2;
+        }
+        
+        .phone-screen {
+            width: 100%;
+            height: 100%;
+            background: #1a1a2e;
+            border-radius: 38px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .phone-screen img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.8; }
+        }
+        
+        @keyframes fadeInOut {
+            0%, 100% { opacity: 0.7; }
+            50% { opacity: 1; }
+        }
+        
+        .animated-content {
+            animation: pulse 3s ease-in-out infinite;
+        }
+        
+        .analyzing-text {
+            animation: fadeInOut 2s ease-in-out infinite;
+        }
+        
+        .glow-circle {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            z-index: 1;
+            pointer-events: none;
+        }
+        
+        .glow-1 {
+            width: 400px;
+            height: 400px;
+            background: #8238EA;
+            top: -100px;
+            right: -100px;
+            opacity: 0.15;
+        }
+        
+        .glow-2 {
+            width: 350px;
+            height: 350px;
+            background: #FA5708;
+            bottom: -80px;
+            right: 50px;
+            opacity: 0.12;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 40px;
+            margin-top: 60px;
+        }
+        
+        .stat-card {
+            background: rgba(255,255,255,0.6);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(130, 56, 234, 0.2);
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            transition: all 0.3s;
+        }
+        
+        .stat-card:hover {
+            background: rgba(255,255,255,0.8);
+            transform: translateY(-5px);
+            border-color: #8238EA;
+        }
+        
+        .stat-number {
+            font-size: 56px;
+            font-weight: 900;
+            background: linear-gradient(135deg, #FDBD09, #FA5708);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 10px;
+        }
+        
+        .stat-label {
+            font-size: 16px;
+            color: rgba(26,26,46,0.7);
+            font-weight: 500;
+        }
+        
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 35px;
+            margin-top: 50px;
+        }
+        
+        .feature-card {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.6));
+            border: 1px solid rgba(130, 56, 234, 0.2);
+            border-radius: 24px;
+            padding: 40px 35px;
+            transition: all 0.4s;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, #8238EA, #FA5708, #FDBD09);
+            transform: scaleX(0);
+            transition: transform 0.4s;
+        }
+        
+        .feature-card:hover {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.85));
+            transform: translateY(-8px);
+            border-color: #8238EA;
+        }
+        
+        .feature-card:hover::before {
+            transform: scaleX(1);
+        }
+        
+        .feature-icon {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #8238EA, #FA5708);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            margin-bottom: 20px;
+        }
+        
+        .two-col-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 60px;
+            margin-top: 50px;
+        }
+        
+        .problem-section {
+            background: rgba(255,255,255,0.7);
+            border: 1px solid rgba(130, 56, 234, 0.2);
+            border-radius: 24px;
+            padding: 45px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .problem-section h3 {
+            font-size: 32px;
+            margin-bottom: 30px;
+        }
+        
+        .problem-list {
+            list-style: none;
+        }
+        
+        .problem-list li {
+            padding: 16px 0;
+            padding-left: 40px;
+            position: relative;
+            font-size: 17px;
+            line-height: 1.6;
+            color: rgba(26,26,46,0.8);
+            border-bottom: 1px solid rgba(130, 56, 234, 0.1);
+        }
+        
+        .problem-list li:last-child {
+            border-bottom: none;
+        }
+        
+        .problem-list li::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 8px;
+            height: 8px;
+            background: #FA5708;
+            border-radius: 50%;
+            box-shadow: 0 0 10px rgba(250, 87, 8, 0.5);
+        }
+        
+        .transaction-timeline {
+            margin-top: 50px;
+            position: relative;
+            padding: 60px 40px;
+        }
+        
+        .timeline-line {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #8238EA, #FA5708, #FDBD09);
+            transform: translateY(-50%);
+        }
+        
+        .timeline-stages {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 20px;
+            position: relative;
+            z-index: 2;
+        }
+        
+        .timeline-stage {
+            text-align: center;
+        }
+        
+        .stage-circle {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            font-weight: 800;
+            position: relative;
+            border: 4px solid;
+            color: #fff;
+        }
+        
+        .stage-1 { background: #8238EA; border-color: #8238EA; box-shadow: 0 10px 40px rgba(130, 56, 234, 0.4); }
+        .stage-2 { background: rgba(130, 56, 234, 0.1); border-color: rgba(130, 56, 234, 0.4); color: #8238EA; }
+        .stage-3 { background: rgba(130, 56, 234, 0.1); border-color: rgba(130, 56, 234, 0.4); color: #8238EA; }
+        .stage-4 { background: rgba(130, 56, 234, 0.1); border-color: rgba(130, 56, 234, 0.4); color: #8238EA; }
+        .stage-5 { background: rgba(130, 56, 234, 0.1); border-color: rgba(130, 56, 234, 0.4); color: #8238EA; }
+        
+        .stage-label {
+            font-size: 15px;
+            font-weight: 600;
+            color: rgba(26,26,46,0.9);
+        }
+        
+        .market-visual {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 50px;
+            margin-top: 50px;
+        }
+        
+        .circle-chart {
+            position: relative;
+            width: 450px;
+            height: 450px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .circle-ring {
+            position: absolute;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+        }
+        
+        .ring-1 {
+            width: 450px;
+            height: 450px;
+            border: 4px solid #FA5708;
+            box-shadow: 0 0 40px rgba(250, 87, 8, 0.2);
+        }
+        
+        .ring-1-label {
+            position: absolute;
+            top: -60px;
+            font-size: 20px;
+            font-weight: 700;
+            color: #FA5708;
+        }
+        
+        .ring-2 {
+            width: 320px;
+            height: 320px;
+            border: 4px solid #FDBD09;
+            box-shadow: 0 0 40px rgba(253, 189, 9, 0.2);
+        }
+        
+        .ring-2-label {
+            position: absolute;
+            top: -50px;
+            font-size: 18px;
+            font-weight: 700;
+            color: #FDBD09;
+        }
+        
+        .ring-3 {
+            width: 190px;
+            height: 190px;
+            border: 4px solid #8238EA;
+            box-shadow: 0 0 40px rgba(130, 56, 234, 0.2);
+            background: rgba(130, 56, 234, 0.08);
+            backdrop-filter: blur(10px);
+        }
+        
+        .ring-3-content {
+            font-size: 22px;
+            font-weight: 800;
+            color: #8238EA;
+            text-align: center;
+        }
+        
+        .flywheel {
+            width: 550px;
+            height: 550px;
+            position: relative;
+            margin: 50px auto;
+        }
+        
+        .flywheel-center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 200px;
+            height: 200px;
+            background: rgba(130, 56, 234, 0.15);
+            border: 4px solid #8238EA;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 17px;
+            font-weight: 700;
+            text-align: center;
+            padding: 20px;
+            z-index: 1;
+            color: #8238EA;
+        }
+        
+        .flywheel-item {
+            position: absolute;
+            width: 140px;
+            height: 140px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            font-weight: 700;
+            font-size: 16px;
+            padding: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+            border: 3px solid rgba(255,255,255,0.3);
+            z-index: 2;
+        }
+        
+        .flywheel-item:nth-child(1) {
+            top: 30px;
+            left: calc(50% + 50px);
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, #FA5708, #ff6b1a);
+            color: #fff;
+        }
+        
+        .flywheel-item:nth-child(2) {
+            right: -20px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: linear-gradient(135deg, #FDBD09, #ffd042);
+            color: #1a1a2e;
+        }
+        
+        .flywheel-item:nth-child(3) {
+            bottom: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, #8238EA, #9d5aff);
+            color: #fff;
+        }
+        
+        .flywheel-item:nth-child(4) {
+            left: -20px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: linear-gradient(135deg, #1a1a2e, #2d3748);
+            color: #fff;
+        }
+        
+        .marketing-circle {
+            top: -20px !important;
+            left: 50% !important;
+            transform: translateX(-50%) !important;
+            background: linear-gradient(135deg, #1a1a2e, #2d3748);
+        }
+        
+        .flywheel-arrow {
+            position: absolute;
+            font-size: 40px;
+            color: #8238EA;
+            z-index: 3;
+            filter: drop-shadow(0 0 10px rgba(130, 56, 234, 0.3));
+        }
+        
+        .arrow-1 { top: 80px; right: 80px; transform: rotate(45deg); }
+        .arrow-2 { bottom: 80px; right: 80px; transform: rotate(135deg); }
+        .arrow-3 { bottom: 80px; left: 80px; transform: rotate(225deg); }
+        .arrow-4 { top: 80px; left: 80px; transform: rotate(315deg); }
+        
+        .timeline-container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 50px;
+            margin-top: 60px;
+        }
+        
+        .timeline-card {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.7));
+            border: 1px solid rgba(130, 56, 234, 0.2);
+            border-radius: 24px;
+            padding: 45px 35px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .timeline-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 5px;
+            background: linear-gradient(90deg, #8238EA, #FA5708);
+        }
+        
+        .timeline-icon {
+            font-size: 72px;
+            margin-bottom: 20px;
+        }
+        
+        .timeline-date {
+            font-size: 32px;
+            font-weight: 800;
+            color: #FDBD09;
+            margin-bottom: 20px;
+        }
+        
+        .founder-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 80px;
+            margin-top: 60px;
+        }
+        
+        .founder-card {
+            text-align: center;
+            background: rgba(255,255,255,0.7);
+            border: 1px solid rgba(130, 56, 234, 0.2);
+            border-radius: 24px;
+            padding: 50px;
+        }
+        
+        .founder-avatar {
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            margin: 0 auto 30px;
+            box-shadow: 0 20px 60px rgba(130, 56, 234, 0.3);
+            border: 4px solid #8238EA;
+            overflow: hidden;
+        }
+        
+        .founder-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .founder-name {
+            font-size: 32px;
+            font-weight: 800;
+            margin-bottom: 8px;
+            color: #1a1a2e;
+        }
+        
+        .founder-title {
+            font-size: 20px;
+            color: #8238EA;
+            font-weight: 600;
+            margin-bottom: 25px;
+        }
+        
+        .founder-bio {
+            text-align: left;
+            list-style: none;
+            font-size: 16px;
+            line-height: 1.8;
+        }
+        
+        .founder-bio li {
+            padding: 10px 0;
+            padding-left: 30px;
+            position: relative;
+            color: rgba(26,26,46,0.75);
+        }
+        
+        .founder-bio li::before {
+            content: '→';
+            position: absolute;
+            left: 0;
+            color: #8238EA;
+            font-weight: 700;
+        }
+        
+        .closing-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: calc(100vh - 160px);
+            text-align: center;
+        }
+        
+        .closing-screen h1 {
+            font-size: 96px;
+            margin-bottom: 40px;
+        }
+        
+        .metric-showcase {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 35px;
+            margin-top: 60px;
+        }
+        
+        .metric-card {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.7));
+            border: 2px solid #8238EA;
+            border-radius: 20px;
+            padding: 45px 35px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+        }
+        
+        .metric-value {
+            font-size: 52px;
+            font-weight: 900;
+            color: #FDBD09;
+            margin-bottom: 15px;
+        }
+        
+        .metric-description {
+            font-size: 16px;
+            color: rgba(26,26,46,0.8);
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide-container">
+        <div class="slide-bg"></div>
+        
+        <div class="slide-number" id="slideNumber">01 / 15</div>
+        <div class="logo-corner">
+            <svg width="60" height="64" viewBox="0 0 146 155" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path fill-rule="evenodd" clip-rule="evenodd" d="M72.6143 128.654H25.4189V154.067H119.812V128.654H72.6143Z" fill="#FDBD09"/>
+                <path fill-rule="evenodd" clip-rule="evenodd" d="M25.4189 128.653V56.5954L48.4061 43.3246L72.6142 29.349V0.000732422L25.4189 27.2496L0 41.9225V67.6561V71.2683V128.653H25.4189Z" fill="#8238EA"/>
+                <path fill-rule="evenodd" clip-rule="evenodd" d="M72.6143 29.349V58.6948L88.138 67.6561L119.812 85.9411V128.653H145.229V100.617V71.2683L138.971 67.6561L119.812 56.5954L72.6143 29.349Z" fill="#FA5708"/>
+            </svg>
+        </div>
+        
+        <div class="click-area click-left" onclick="changeSlide(-1)"></div>
+        <div class="click-area click-right" onclick="changeSlide(1)"></div>
+
+        <!-- Slide 1: Hero -->
+        <div class="slide active">
+            <div class="slide-content">
+                <div class="hero-section">
+                    <div class="hero-text">
+                        <div class="hero-title-container">
+                            <svg width="80" height="85" viewBox="0 0 146 155" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path fill-rule="evenodd" clip-rule="evenodd" d="M72.6143 128.654H25.4189V154.067H119.812V128.654H72.6143Z" fill="#FDBD09"/>
+                                <path fill-rule="evenodd" clip-rule="evenodd" d="M25.4189 128.653V56.5954L48.4061 43.3246L72.6142 29.349V0.000732422L25.4189 27.2496L0 41.9225V67.6561V71.2683V128.653H25.4189Z" fill="#8238EA"/>
+                                <path fill-rule="evenodd" clip-rule="evenodd" d="M72.6143 29.349V58.6948L88.138 67.6561L119.812 85.9411V128.653H145.229V100.617V71.2683L138.971 67.6561L119.812 56.5954L72.6143 29.349Z" fill="#FA5708"/>
+                            </svg>
+                            <h1>CAYA</h1>
+                        </div>
+                        <p class="hero-subtitle">
+                            The first <span class="highlight">mobile-first real estate platform</span> revolutionizing Latin America's fragmented home buying market.
+                        </p>
+                        <p class="hero-subtitle">
+                            Our AI-powered <span class="accent-purple">Mini-Agents increase conversion from leads to property tours</span> by providing 24/7 personalized support.
+                        </p>
+                        <p class="hero-subtitle">
+                            <span class="accent-orange">Our mission: Become the #1 online marketplace for home buying in Latin America</span> and increase online participation in life's biggest transaction.
+                        </p>
+                    </div>
+                    <div class="phone-showcase">
+                        <div class="glow-circle glow-1"></div>
+                        <div class="glow-circle glow-2"></div>
+                        <div class="phone-mockup">
+                            <div class="phone-screen">
+                                <div id="lottie-animation" style="width: 100%; height: 100%; background: linear-gradient(135deg, #1a1a2e 0%, #2d3748 100%); display: flex; align-items: center; justify-content: center; flex-direction: column; padding: 40px;">
+                                    <div class="animated-content" style="text-align: center; color: white;">
+                                        <div style="font-size: 48px; margin-bottom: 30px;">🏠</div>
+                                        <div style="font-size: 20px; font-weight: 600; margin-bottom: 20px; color: #FDBD09;">Emmi AI Assistant</div>
+                                        <div class="analyzing-text" style="font-size: 16px; line-height: 1.6; margin-bottom: 30px;">Analyzing market data...</div>
+                                        <div style="background: linear-gradient(135deg, #8238EA, #FA5708); color: white; padding: 12px 30px; border-radius: 25px; font-weight: 600; margin-top: 20px;">Browse Homes</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 2: Problem -->
+        <div class="slide">
+            <div class="slide-content">
+                <h1>The Problem</h1>
+                <div class="two-col-layout">
+                    <div class="problem-section">
+                        <h3 style="color: #FDBD09;">Users</h3>
+                        <ul class="problem-list">
+                            <li>Information fragmented across multiple platforms</li>
+                            <li><strong>Long response times and lack of real estate follow-up.</strong></li>
+                            <li>Inefficiency in the search process</li>
+                            <li>There is no real estate app based on artificial intelligence.</li>
+                            <li>The process is not digitalized.</li>
+                        </ul>
+                    </div>
+                    <div class="problem-section">
+                        <h3 style="color: #FA5708;">Agencies</h3>
+                        <ul class="problem-list">
+                            <li>High costs just for listing properties</li>
+                            <li>CPL between $400 and $600</li>
+                            <li>Low-qualified leads</li>
+                            <li>There are no technological tools for communicating with leads to make the process more efficient.</li>
+                            <li>There is no centralized platform for finding property options for customers.</li>
+                            <li><strong>Low conversion from lead to visit</strong></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 3: Solution for Users -->
+        <div class="slide">
+            <div class="slide-content">
+                <h1 style="margin-bottom: 20px;">Solution for Users</h1>
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon">🤖</div>
+                        <h3>AI-Powered Mobile Experience</h3>
+                        <p>Tailor your property search to your preferences. Our AI learns what appeals to you and suggests personalized options using intelligent market analysis.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🏘️</div>
+                        <h3>National Inventory</h3>
+                        <p>Access consolidated inventory from independent agencies, developers, and brokers across Mexico through direct partnerships and MLS integration.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">💬</div>
+                        <h3>'Mini-Agents' Experience</h3>
+                        <p>Emmi, our virtual agent, assists 24/7 with search, communication, and education. <span class="accent-purple">Dramatically increases lead conversion rates.</span></p>
+                    </div>
+                </div>
+                <div class="stat-card" style="margin-top: 50px; max-width: 800px; margin-left: auto; margin-right: auto;">
+                    <p style="font-size: 20px;">Our AI analyzes market trends and personalizes recommendations, creating a truly tailored home-buying experience that increases engagement and conversion.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 4: Solution for Agencies -->
+        <div class="slide">
+            <div class="slide-content">
+                <h1 style="margin-bottom: 50px;">Solution for Agencies</h1>
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon">💰</div>
+                        <h3>Zero Listing Fees</h3>
+                        <p><span class="highlight">No listing fees. Ever.</span> Pay-per-lead and pay-per-visit pricing means agencies only pay for qualified results. Emmi's profiling ensures highly targeted leads at lower cost.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🤝</div>
+                        <h3>Unified Network</h3>
+                        <p>Caya consolidates independent agencies and brokers, fostering collaboration to generate synergies, maximize results through shared inventory, and build a professional community.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">⚡</div>
+                        <h3>24/7 Lead Support</h3>
+                        <p>Agents no longer depend on availability. Emmi provides timely assistance as a universal agent. <span class="accent-purple">Improves conversion, lead quality, and helps bottom performers close more sales.</span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 5: Transaction Integration -->
+        <div class="slide">
+            <div class="slide-content">
+                <h1>Transaction Integration</h1>
+                <h2 style="margin-bottom: 30px;">Capturing the Full Home-Buying Journey</h2>
+                <p style="font-size: 19px; margin-bottom: 20px; opacity: 0.9;">Mexico's real estate market represents <span class="highlight">600k yearly transactions worth $420B MXN annually.</span> Our strategy: integrate Caya across the entire transaction process to capture greater market share.</p>
+                
+                <div class="transaction-timeline">
+                    <div class="timeline-line"></div>
+                    <div class="timeline-stages">
+                        <div class="timeline-stage">
+                            <div class="stage-circle stage-1">1</div>
+                            <div class="stage-label">Property Search<br/><span style="color: #8238EA; font-weight: 800;">(CAYA NOW)</span></div>
+                        </div>
+                        <div class="timeline-stage">
+                            <div class="stage-circle stage-2">2</div>
+                            <div class="stage-label">Property Tours & Viewings</div>
+                        </div>
+                        <div class="timeline-stage">
+                            <div class="stage-circle stage-3">3</div>
+                            <div class="stage-label">Offer & Negotiation</div>
+                        </div>
+                        <div class="timeline-stage">
+                            <div class="stage-circle stage-4">4</div>
+                            <div class="stage-label">Financing & Legal</div>
+                        </div>
+                        <div class="timeline-stage">
+                            <div class="stage-circle stage-5">5</div>
+                            <div class="stage-label">Closing & Moving</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="feature-grid" style="grid-template-columns: repeat(2, 1fr); margin-top: 50px;">
+                    <div class="feature-card">
+                        <h3>Future Integration Points</h3>
+                        <p style="margin-top: 15px;">• AI design visualization<br/>• Mortgage pre-approval<br/>• Legal document support<br/>• Moving services marketplace<br/>• Furniture & home goods</p>
+                    </div>
+                    <div class="feature-card" style="background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.85)); border-color: #FA5708;">
+                        <h3 style="color: #FA5708;">Revenue Opportunity</h3>
+                        <p style="margin-top: 15px; font-size: 19px;">Each transaction stage represents additional revenue streams beyond initial lead generation, multiplying our market capture potential.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 6: Market Size -->
+        <div class="slide">
+            <div class="slide-content">
+                <h1>Market Size</h1>
+                <h2 style="color: #8238EA;">Transaction Volume, Not Listings</h2>
+                <p style="font-size: 19px; margin-bottom: 30px; opacity: 0.9;">We measure opportunity through yearly transaction volume - actual homes bought and sold. This represents real revenue potential.</p>
+                <div class="market-visual" style="margin-top: 80px;">
+                    <div class="circle-chart">
+                        <div class="circle-ring ring-1">
+                            <div class="ring-1-label">TAM: $520M MXN</div>
+                        </div>
+                        <div class="circle-ring ring-2">
+                            <div class="ring-2-label">SAM: $182M</div>
+                        </div>
+                        <div class="circle-ring ring-3">
+                            <div class="ring-3-content">SOM<br/>$18M</div>
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 30px; max-width: 900px;">
+                        <div style="text-align: center;">
+                            <h3 style="color: #FA5708; font-size: 24px;">Total Market</h3>
+                            <p style="font-size: 15px; opacity: 0.8;">1.3M properties × $400-600 CPL</p>
+                        </div>
+                        <div style="text-align: center;">
+                            <h3 style="color: #FDBD09; font-size: 24px;">Year 1 Focus</h3>
+                            <p style="font-size: 15px; opacity: 0.8;">Mexico City + Monterrey (35%)</p>
+                        </div>
+                        <div style="text-align: center;">
+                            <h3 style="color: #8238EA; font-size: 24px;">Year 1 Target</h3>
+                            <p style="font-size: 15px; opacity: 0.8;">20% share × 50% quality rate</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 7: Market Opportunity -->
+        <div class="slide">
+            <div class="slide-content">
+                <h1>Blue Ocean Opportunity</h1>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-number">5%</div>
+                        <div class="stat-label">Mexico Digital Penetration</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">66%</div>
+                        <div class="stat-label">US (Zillow Group)</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">144%</div>
+                        <div class="stat-label">UK (Rightmove)</div>
+                    </div>
+                </div>
+                <div style="margin-top: 50px; max-width: 1000px;">
+                    <h2 style="color: #FDBD09; font-size: 36px; margin-bottom: 30px;">Why Latin America is Wide Open</h2>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 25px;">
+                        <div class="feature-card" style="padding: 30px;">
+                            <p><strong style="color: #8238EA;">Massive digital gap</strong> - 5% vs 66-144% penetration creates enormous growth runway</p>
+                        </div>
+                        <div class="feature-card" style="padding: 30px;">
+                            <p><strong style="color: #FA5708;">Lack of AI Integration</strong> - Just manual communication methods</p>
+                        </div>
+                        <div class="feature-card" style="padding: 30px;">
+                            <p><strong style="color: #FDBD09;">Traditional reliance</strong> - Heavy dependence on offline agents and networks</p>
+                        </div>
+                        <div class="feature-card" style="padding: 30px;">
+                            <p><strong style="color: #8238EA;">Fragmented market</strong> - No dominant player, traffic split across many portals</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 8: Competitive Advantages -->
+        <div class="slide">
+            <div class="slide-content">
+                <h1>Competitive Advantages</h1>
+                <div class="feature-grid" style="grid-template-columns: repeat(2, 1fr); margin-top: 60px;">
+                    <div class="feature-card">
+                        <div class="feature-icon">🚀</div>
+                        <h3>Mobile Native</h3>
+                        <p>Zillow does not operate in Latin America, and our main competitor doesn't even leverage AI.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">💎</div>
+                        <h3>Superior Business Model</h3>
+                        <p><span class="highlight">Zero listing fees for agencies.</span> Performance-based pricing optimizes costs while our AI profiling delivers higher-quality leads than any competitor.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">👥</div>
+                        <h3>Expert Team</h3>
+                        <p>One co-founder owns a real estate agency (deep industry insight). The other successfully built and sold prop-tech companies in the US (proven execution).</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">⚙️</div>
+                        <h3>Cutting-Edge AI</h3>
+                        <p>Our mini-agent Emmi provides 24/7 support with advanced profiling, dramatically improving conversion rates and user experience beyond static portals.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 9: Business Model Flywheel -->
+        <div class="slide">
+            <div class="slide-content">
+                <h1>Business Model</h1>
+                <h2 style="text-align: center; color: #FDBD09;">The Caya Flywheel</h2>
+                <div class="flywheel">
+                    <div class="flywheel-center">Self-Reinforcing Growth</div>
+                    <div class="flywheel-item visitors-circle">Visitors<br/>(Traffic)</div>
+                    <div class="flywheel-item engagement-circle">Engagement<br/>(Activity)</div>
+                    <div class="flywheel-item revenue-circle">Revenue<br/>(Leads)</div>
+                    <div class="flywheel-item marketing-circle" style="color: #fff;">Marketing<br/>(Growth)</div>
+                    <div class="flywheel-arrow arrow-1">➤</div>
+                    <div class="flywheel-arrow arrow-2">➤</div>
+                    <div class="flywheel-arrow arrow-3">➤</div>
+                    <div class="flywheel-arrow arrow-4">➤</div>
+                </div>
+                <p style="text-align: center; font-size: 18px; max-width: 800px; margin: 0 auto; opacity: 0.9;">
+                    Traffic drives engagement with Emmi and our AI tools → converts to qualified leads and revenue from agencies → funds more marketing to attract visitors → accelerating the entire cycle
+                </p>
+            </div>
+        </div>
+
+        <!-- Slide 10: Unit Economics -->
+        <div class="slide">
+            <div class="slide-content">
+                <h1>Economics</h1>
+                <div class="two-col-layout">
+                    <div>
+                        <h2 style="font-size: 32px; margin-bottom: 30px;">Marketing Conversion</h2>
+                        <div class="feature-card" style="margin-bottom: 25px;">
+                            <h3 style="font-size: 22px;">Site Visits → App Downloads</h3>
+                            <p style="margin-top: 10px;">Target: <span class="highlight">15-20% conversion</span> through optimized onboarding</p>
+                        </div>
+                        <div class="feature-card" style="margin-bottom: 25px;">
+                            <h3 style="font-size: 22px;">Users → Qualified Leads</h3>
+                            <p style="margin-top: 10px;">Target: <span class="highlight">30-40% conversion</span> via Emmi's profiling</p>
+                        </div>
+                        <div class="feature-card">
+                            <h3 style="font-size: 22px;">Leads → Property Tours</h3>
+                            <p style="margin-top: 10px;">Target: <span class="highlight">25-35% conversion</span> to scheduled visits</p>
+                        </div>
+                    </div>
+                    <div>
+                        <h2 style="font-size: 32px; margin-bottom: 30px;">Product & Hosting</h2>
+                        <div class="feature-card" style="margin-bottom: 25px;">
+                            <h3 style="font-size: 22px;">AWS Hosting</h3>
+                            <p style="margin-top: 10px;">Scalable cloud infrastructure for app backend, database, and file storage</p>
+                        </div>
+                        <div class="feature-card" style="margin-bottom: 25px;">
+                            <h3 style="font-size: 22px;">ChatGPT API</h3>
+                            <p style="margin-top: 10px;">Powers Emmi's 24/7 conversational AI and lead qualification</p>
+                        </div>
+                        <div class="feature-card">
+                            <h3 style="font-size: 22px;">Analytics & Tools</h3>
+                            <p style="margin-top: 10px;">User tracking, A/B testing, push notifications, performance monitoring</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 11: Revenue Model -->
+        <div class="slide">
+            <div class="slide-content">
+                <h1>Revenue Model</h1>
+                <div class="metric-showcase">
+                    <div class="metric-card" style="border-color: #8238EA;">
+                        <h3 style="font-size: 24px; margin-bottom: 20px;">Qualified Lead</h3>
+                        <div class="metric-value">$100</div>
+                        <div class="metric-description">MXN per qualified lead<br/>• User/Lead contact<br/>• Emmi attention<br/>• Lead profiling</div>
+                    </div>
+                    <div class="metric-card" style="border-color: #FA5708;">
+                        <h3 style="font-size: 24px; margin-bottom: 20px;">Property Visit</h3>
+                        <div class="metric-value">$200</div>
+                        <div class="metric-description">MXN per scheduled visit<br/>• Calendar appointment<br/>• Visit confirmation<br/>• Enhanced lead info</div>
+                    </div>
+                    <div class="metric-card" style="border-color: #FDBD09;">
+                        <h3 style="font-size: 24px; margin-bottom: 20px;">Listing Fee</h3>
+                        <div class="metric-value" style="color: #22c55e;">$0</div>
+                        <div class="metric-description" style="color: #22c55e;">Zero listing fees<br/>Performance-based only<br/>Aligned incentives</div>
+                    </div>
+                </div>
+                <div style="margin-top: 50px; text-align: center;">
+                    <div class="stat-card" style="display: inline-block; max-width: 800px;">
+                        <p style="font-size: 20px;"><span class="highlight">Performance-based model aligns incentives:</span> Agencies only pay for results, while we're motivated to deliver maximum lead quality and conversion.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 12: Use of Capital -->
+        <div class="slide">
+            <div class="slide-content">
+                <h1>Use of Capital</h1>
+                <p style="font-size: 20px; margin-bottom: 40px; opacity: 0.95;">Your investment fuels rapid market capture during this critical window, before competitors develop mobile solutions.</p>
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 35px;">
+                    <div class="feature-card" style="background: linear-gradient(135deg, rgba(250, 87, 8, 0.15), rgba(250, 87, 8, 0.05)); border-color: #FA5708;">
+                        <h3 style="color: #FA5708; font-size: 26px; margin-bottom: 20px;">Marketing (60%)</h3>
+                        <ul style="list-style: none; font-size: 16px; line-height: 1.8;">
+                            <li style="padding: 8px 0;">→ Digital advertising campaigns</li>
+                            <li style="padding: 8px 0;">→ App store optimization</li>
+                            <li style="padding: 8px 0;">→ Agency partnerships</li>
+                            <li style="padding: 8px 0;">→ Influencer marketing</li>
+                            <li style="padding: 8px 0;">→ Brand awareness & PR</li>
+                        </ul>
+                    </div>
+                    <div class="feature-card" style="background: linear-gradient(135deg, rgba(253, 189, 9, 0.15), rgba(253, 189, 9, 0.05)); border-color: #FDBD09;">
+                        <h3 style="color: #FDBD09; font-size: 26px; margin-bottom: 20px;">Technology (25%)</h3>
+                        <ul style="list-style: none; font-size: 16px; line-height: 1.8;">
+                            <li style="padding: 8px 0;">→ AWS hosting infrastructure</li>
+                            <li style="padding: 8px 0;">→ AI/ML development</li>
+                            <li style="padding: 8px 0;">→ Mobile app optimization</li>
+                            <li style="padding: 8px 0;">→ Data infrastructure</li>
+                            <li style="padding: 8px 0;">→ Security & compliance</li>
+                        </ul>
+                    </div>
+                    <div class="feature-card" style="background: linear-gradient(135deg, rgba(130, 56, 234, 0.15), rgba(130, 56, 234, 0.05)); border-color: #8238EA;">
+                        <h3 style="color: #8238EA; font-size: 26px; margin-bottom: 20px;">Operations (10%)</h3>
+                        <ul style="list-style: none; font-size: 16px; line-height: 1.8;">
+                            <li style="padding: 8px 0;">→ Customer support team</li>
+                            <li style="padding: 8px 0;">→ Quality assurance</li>
+                            <li style="padding: 8px 0;">→ Legal & compliance</li>
+                        </ul>
+                    </div>
+                    <div class="feature-card" style="background: linear-gradient(135deg, rgba(26, 26, 46, 0.15), rgba(26, 26, 46, 0.08)); border-color: #1a1a2e;">
+                        <h3 style="color: #1a1a2e; font-size: 26px; margin-bottom: 20px;">Reserve (5%)</h3>
+                        <ul style="list-style: none; font-size: 16px; line-height: 1.8;">
+                            <li style="padding: 8px 0;">→ Buffer for opportunities</li>
+                            <li style="padding: 8px 0;">→ Runway extension</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 13: Milestones -->
+        <div class="slide">
+            <div class="slide-content">
+                <h1>Key Milestones</h1>
+                <div class="timeline-container">
+                    <div class="timeline-card">
+                        <div class="timeline-icon">📱</div>
+                        <div class="timeline-date">Jan 2026</div>
+                        <p style="font-size: 17px; line-height: 1.7;">Launch new product/service, receive positive feedback from early adopters, and form partnerships with key industry players in Mexico City and Monterrey.</p>
+                    </div>
+                    <div class="timeline-card">
+                        <div class="timeline-icon">💰</div>
+                        <div class="timeline-date">EOY 2026</div>
+                        <p style="font-size: 17px; line-height: 1.7;">Achieve net revenue positive status (excluding salary costs) through proven unit economics and operational efficiency in core markets.</p>
+                    </div>
+                    <div class="timeline-card">
+                        <div class="timeline-icon">🚀</div>
+                        <div class="timeline-date">2027</div>
+                        <p style="font-size: 17px; line-height: 1.7;">Raise Series A based on real traction. Strategy: invest heavily in marketing to accumulate market demand and expand nationally.</p>
+                    </div>
+                </div>
+                <div style="margin-top: 50px;">
+                    <div class="stat-card" style="max-width: 900px; margin: 0 auto; background: linear-gradient(135deg, rgba(250, 87, 8, 0.1), rgba(130, 56, 234, 0.08)); border-color: #FA5708;">
+                        <h3 style="color: #FA5708; font-size: 24px; margin-bottom: 15px;">Conservative, Achievable Timeline</h3>
+                        <p style="font-size: 18px;">We're focused on proving the model in Mexico City and Monterrey before expansion. Our timeline prioritizes sustainable growth and real validation over aggressive geographic expansion.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 14: Team -->
+        <div class="slide">
+            <div class="slide-content">
+                <h1>Founding Team</h1>
+                <div class="founder-grid">
+                    <div class="founder-card">
+                        <div class="founder-avatar">
+                            <img src="https://i.imgur.com/C9nFWuO.jpg" alt="Edgar Erives" style="width: 100%; height: 100%; object-fit: cover;">
+                        </div>
+                        <div class="founder-name">Edgar Erives</div>
+                        <div class="founder-title">Co-Founder</div>
+                        <ul class="founder-bio">
+                            <li>Industrial Engineer (ITESM)</li>
+                            <li>Ex Line, Ex Alameda, Ex Mudafy</li>
+                            <li>Satori Home founder</li>
+                            <li>Owns & operates real estate agency</li>
+                            <li>Deep industry expertise and relationships</li>
+                        </ul>
+                        <p style="margin-top: 25px; font-size: 15px; color: #8238EA; font-weight: 600;">
+                            🔗 <a href="https://www.linkedin.com/in/edgar-erives-88baaa88/" target="_blank" style="color: #8238EA; text-decoration: none;">LinkedIn Profile</a>
+                        </p>
+                    </div>
+                    <div class="founder-card">
+                        <div class="founder-avatar">
+                            <img src="https://i.imgur.com/2myLihf.jpg" alt="Spencer Hall">
+                        </div>
+                        <div class="founder-name">Spencer Hall</div>
+                        <div class="founder-title">Co-Founder</div>
+                        <ul class="founder-bio">
+                            <li>Founded & sold SparkTalk</li>
+                            <li>Founded & sold Recruitable</li>
+                            <li>Founded & exited Aidium</li>
+                            <li>8 Years in the prop-tech space</li>
+                        </ul>
+                        <p style="margin-top: 25px; font-size: 15px; color: #8238EA; font-weight: 600;">
+                            🔗 <a href="https://www.linkedin.com/in/spencer-hall-318a69130/" target="_blank" style="color: #8238EA; text-decoration: none;">LinkedIn Profile</a>
+                        </p>
+                    </div>
+                </div>
+                <div style="margin-top: 50px; text-align: center;">
+                    <div class="stat-card" style="display: inline-block; max-width: 800px; background: linear-gradient(135deg, #8238EA, #9d5aff); border: none;">
+                        <h3 style="color: #FDBD09; font-size: 24px; margin-bottom: 15px;">Complementary Expertise</h3>
+                        <p style="font-size: 18px; color: rgba(255,255,255,0.95);">One founder brings on-the-ground real estate operations expertise, the other brings proven prop-tech startup success. Together: industry knowledge + execution capability.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 15: Closing -->
+        <div class="slide">
+            <div class="slide-content">
+                <div class="closing-screen">
+                    <svg width="200" height="212" viewBox="0 0 146 155" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-bottom: 50px; filter: drop-shadow(0 20px 60px rgba(130, 56, 234, 0.3));">
+                        <path fill-rule="evenodd" clip-rule="evenodd" d="M72.6143 128.654H25.4189V154.067H119.812V128.654H72.6143Z" fill="#FDBD09"/>
+                        <path fill-rule="evenodd" clip-rule="evenodd" d="M25.4189 128.653V56.5954L48.4061 43.3246L72.6142 29.349V0.000732422L25.4189 27.2496L0 41.9225V67.6561V71.2683V128.653H25.4189Z" fill="#8238EA"/>
+                        <path fill-rule="evenodd" clip-rule="evenodd" d="M72.6143 29.349V58.6948L88.138 67.6561L119.812 85.9411V128.653H145.229V100.617V71.2683L138.971 67.6561L119.812 56.5954L72.6143 29.349Z" fill="#FA5708"/>
+                    </svg>
+                    <h1 style="font-size: 96px; margin-bottom: 35px;">Thank You</h1>
+                    <h2 style="font-size: 42px; margin-bottom: 50px; color: #FDBD09;">Let's Build the Future of Latin American Real Estate</h2>
+                    <p style="font-size: 22px; max-width: 800px; line-height: 1.8; opacity: 0.95; margin: 0 auto;">
+                        Join us in capturing the massive blue ocean opportunity to digitize home buying in Latin America. With the right partner, we'll become the dominant mobile real estate platform across the region.
+                    </p>
+                    <div style="margin-top: 60px;">
+                        <p style="font-size: 18px; color: #8238EA; font-weight: 700; margin-bottom: 15px;">Contact Us</p>
+                        <p style="font-size: 18px; opacity: 0.9;">contacto@caya.com.mx | <a href="https://www.caya.com.mx" target="_blank" style="color: #FDBD09; text-decoration: none; transition: color 0.3s;" onmouseover="this.style.color='#8238EA'" onmouseout="this.style.color='#FDBD09'">www.caya.com.mx</a></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentSlide = 0;
+        const slides = document.querySelectorAll('.slide');
+        const totalSlides = slides.length;
+        const logoCorner = document.querySelector('.logo-corner');
+
+        function showSlide(n) {
+            if (n < 0 || n >= totalSlides) return;
+            
+            slides[currentSlide].classList.remove('active');
+            currentSlide = n;
+            slides[currentSlide].classList.add('active');
+            
+            const slideNum = String(currentSlide + 1).padStart(2, '0');
+            document.getElementById('slideNumber').textContent = `${slideNum} / 15`;
+            
+            // Hide logo on first slide, show on all others
+            if (currentSlide === 0) {
+                logoCorner.style.display = 'none';
+            } else {
+                logoCorner.style.display = 'block';
+            }
+        }
+
+        function changeSlide(direction) {
+            const newSlide = currentSlide + direction;
+            if (newSlide >= 0 && newSlide < totalSlides) {
+                showSlide(newSlide);
+            }
+        }
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'ArrowLeft') {
+                changeSlide(-1);
+            } else if (e.key === 'ArrowRight') {
+                changeSlide(1);
+            }
+        });
+
+        showSlide(0);
+    </script>
+</body>
+</html>
+
