@@ -27,6 +27,7 @@ import requests
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 from supabase import create_client, Client
+from playwright.async_api import async_playwright
 
 from crawl4ai import AsyncWebCrawler, BrowserConfig, CrawlerRunConfig, CacheMode
 from crawl4ai.extraction_strategy import JsonCssExtractionStrategy
@@ -73,6 +74,9 @@ class EnhancedPincaliScraper:
         self.properties_updated = 0
         self.errors_count = 0
         
+        # Load cookies for authenticated requests
+        self.cookies = self.load_cookies()
+        
         # Browser configuration for Crawl4AI
         self.browser_config = BrowserConfig(
             headless=True,
@@ -100,6 +104,24 @@ class EnhancedPincaliScraper:
                 {"name": "area", "selector": ".features div:contains('m²')", "type": "text"}
             ]
         }
+    
+    def load_cookies(self) -> List[Dict]:
+        """Load cookies from pincali_cookies.json file"""
+        cookies_file = 'pincali_cookies.json'
+        
+        if not os.path.exists(cookies_file):
+            logger.warning(f"Cookies file '{cookies_file}' not found. Phone numbers may not be extracted.")
+            logger.warning("Please run 'python get_cookies.py' first to save your login cookies.")
+            return []
+        
+        try:
+            with open(cookies_file, 'r') as f:
+                cookies = json.load(f)
+            logger.info(f"✅ Loaded {len(cookies)} cookies from {cookies_file}")
+            return cookies
+        except Exception as e:
+            logger.error(f"Failed to load cookies from {cookies_file}: {e}")
+            return []
     
     async def create_scraping_session(self, filters_applied: Dict = None) -> str:
         """Create a new scraping session in the database"""
@@ -751,29 +773,83 @@ class EnhancedPincaliScraper:
             return []
     
     async def scrape_property_details(self, detail_url: str) -> Dict:
-        """Scrape detailed information from individual property page - same as working scraper"""
-        logger.debug(f"Scraping property details: {detail_url}")
+        """Scrape detailed information from individual property page using Playwright with cookies"""
+        logger.debug(f"Scraping property details with cookies: {detail_url}")
         
         try:
-            import requests
-            
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-                'Accept-Language': 'en-US,en;q=0.5',
-                'Referer': 'https://www.pincali.com',
-                'Accept-Encoding': 'gzip, deflate',
-                'Connection': 'keep-alive',
-            }
-            
-            response = requests.get(detail_url, headers=headers, timeout=30)
-            
-            if response.status_code == 200:
-                return await self.extract_detailed_property_info(response.text, detail_url)
-            else:
-                logger.warning(f"Failed to fetch property details {detail_url}: {response.status_code}")
-                await self.log_error(detail_url, "detail_http_error", f"Status code: {response.status_code}")
-                return {}
+            # Use Playwright with cookies to extract phone numbers
+            async with async_playwright() as p:
+                browser = await p.chromium.launch(
+                    headless=True,
+                    args=['--disable-blink-features=AutomationControlled']
+                )
+                
+                context = await browser.new_context(
+                    user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    viewport={'width': 1920, 'height': 1080}
+                )
+                
+                # Add cookies if available
+                if self.cookies:
+                    await context.add_cookies(self.cookies)
+                    logger.debug(f"Added {len(self.cookies)} cookies to context")
+                
+                page = await context.new_page()
+                
+                # Navigate to property page
+                await page.goto(detail_url, wait_until='networkidle', timeout=30000)
+                
+                # Wait for page to load
+                await page.wait_for_timeout(2000)
+                
+                # Try to click the "Send message" button to reveal phone numbers
+                try:
+                    send_button = await page.query_selector('input[type="submit"][value="Send message"]')
+                    if send_button:
+                        await send_button.click()
+                        logger.debug("Clicked 'Send message' button")
+                        # Wait for phone numbers to appear
+                        await page.wait_for_timeout(2000)
+                    else:
+                        logger.debug("Send message button not found on this property")
+                except Exception as e:
+                    logger.debug(f"Could not click Send message button: {e}")
+                
+                # Get the final HTML after interaction
+                html = await page.content()
+                
+                # Extract property details from HTML
+                details = await self.extract_detailed_property_info(html, detail_url)
+                
+                # Extract phone numbers using Playwright (more reliable than HTML parsing)
+                phone_numbers = set()
+                try:
+                    # Find all publisher-phones divs and extract phone links
+                    phones_divs = await page.query_selector_all('.publisher-phones')
+                    for div in phones_divs:
+                        phone_links = await div.query_selector_all('a[href^="tel:"]')
+                        for link in phone_links:
+                            href = await link.get_attribute('href')
+                            if href:
+                                phone = href.replace('tel:', '').strip()
+                                if phone:
+                                    phone_numbers.add(phone)
+                                    logger.debug(f"Found phone number: {phone}")
+                except Exception as e:
+                    logger.debug(f"Error extracting phone numbers via Playwright: {e}")
+                
+                # If we found phone numbers, add them to details
+                if phone_numbers:
+                    # Store all phone numbers as a comma-separated string or use the first one
+                    details["agent_phone"] = list(phone_numbers)[0]  # Use first phone for agent_phone field
+                    if len(phone_numbers) > 1:
+                        details["agent_phone_all"] = ','.join(sorted(phone_numbers))  # Store all phones
+                        logger.info(f"✅ Extracted {len(phone_numbers)} phone number(s) for {detail_url}")
+                else:
+                    logger.debug(f"No phone numbers found for {detail_url}")
+                
+                await browser.close()
+                return details
                 
         except Exception as e:
             logger.error(f"Error scraping property details {detail_url}: {e}")
