@@ -51,9 +51,34 @@ logger = logging.getLogger(__name__)
 class EnhancedPincaliScraper:
     """Enhanced scraper class for Pincali.com using staging table architecture"""
     
+    # Define all listing sources with their operation types
+    LISTING_SOURCES = [
+        {
+            "name": "For Sale",
+            "url": "https://www.pincali.com/en/properties/properties-for-sale",
+            "operation_type": "sale"
+        },
+        {
+            "name": "For Rent",
+            "url": "https://www.pincali.com/en/properties/properties-for-rent",
+            "operation_type": "rent"
+        },
+        {
+            "name": "Foreclosure",
+            "url": "https://www.pincali.com/en/properties/properties-for-foreclosure",
+            "operation_type": "foreclosure"
+        },
+        {
+            "name": "New Construction",
+            "url": "https://www.pincali.com/en/properties/under-construction",
+            "operation_type": "new_construction"
+        }
+    ]
+    
     def __init__(self):
         self.base_url = "https://www.pincali.com"
-        self.target_url = "https://www.pincali.com/en/properties/residential-listings-for-sale-or-rent"
+        # Default target_url for backwards compatibility (will be overridden in multi-source scraping)
+        self.target_url = "https://www.pincali.com/en/properties/properties-for-sale"
         
         # Initialize Supabase client
         self.supabase_url = os.getenv("SUPABASE_URL")
@@ -444,12 +469,19 @@ class EnhancedPincaliScraper:
         return None
     
     def extract_operation_type(self, operation_text: str) -> str:
-        """Extract operation type (sale/rent) from text - same as working scraper"""
+        """Extract operation type (sale/rent/foreclosure/new_construction) from text"""
         if not operation_text:
             return "sale"  # Default
         
         text_lower = operation_text.lower()
-        if any(word in text_lower for word in ['rent', 'renta', 'alquiler', 'arrendamiento']):
+        
+        # Check for new operation types first (more specific)
+        if any(word in text_lower for word in ['foreclosure', 'remate', 'embargo', 'adjudicacion', 'adjudicación']):
+            return "foreclosure"
+        elif any(word in text_lower for word in ['new_construction', 'new construction', 'under construction', 
+                                                   'construccion', 'construcción', 'preventa', 'pre-venta']):
+            return "new_construction"
+        elif any(word in text_lower for word in ['rent', 'renta', 'alquiler', 'arrendamiento']):
             return "rent"
         elif any(word in text_lower for word in ['sale', 'venta', 'sell']):
             return "sale"
@@ -1258,84 +1290,248 @@ class EnhancedPincaliScraper:
             logger.error(f"Error determining total pages: {e}")
             return 100  # Default fallback
     
-    async def scrape_all_pages(self, max_pages: Optional[int] = None, start_page: int = 1, auto_sync: bool = True):
-        """Scrape all property listing pages and optionally run sync workflow"""
+    async def scrape_all_sources(self, max_pages_per_source: Optional[int] = None, start_page: int = 1, 
+                                  auto_sync: bool = True, sources: Optional[List[str]] = None):
+        """Scrape all listing sources (sale, rent, foreclosure, new_construction) and optionally run sync workflow
+        
+        Args:
+            max_pages_per_source: Maximum pages to scrape per source (None = auto-detect)
+            start_page: Starting page number for each source
+            auto_sync: Whether to run sync workflow after scraping
+            sources: List of source operation_types to scrape (None = all sources)
+                     Valid values: 'sale', 'rent', 'foreclosure', 'new_construction'
+        """
+        try:
+            # Create scraping session
+            await self.create_scraping_session()
+            
+            # Determine which sources to scrape
+            if sources:
+                # Filter to only requested sources
+                sources_to_scrape = [s for s in self.LISTING_SOURCES if s["operation_type"] in sources]
+                if not sources_to_scrape:
+                    logger.error(f"No valid sources found. Valid options: sale, rent, foreclosure, new_construction")
+                    return
+            else:
+                sources_to_scrape = self.LISTING_SOURCES
+            
+            logger.info(f"=" * 60)
+            logger.info(f"Starting FULL property scrape from {len(sources_to_scrape)} sources")
+            logger.info(f"Sources: {[s['name'] for s in sources_to_scrape]}")
+            logger.info(f"=" * 60)
+            
+            total_pages_all_sources = 0
+            source_stats = {}
+            
+            # Scrape each listing source
+            for source_idx, source in enumerate(sources_to_scrape, 1):
+                source_name = source["name"]
+                source_url = source["url"]
+                operation_type = source["operation_type"]
+                
+                logger.info(f"\n{'=' * 60}")
+                logger.info(f"[{source_idx}/{len(sources_to_scrape)}] Scraping: {source_name} ({operation_type})")
+                logger.info(f"URL: {source_url}")
+                logger.info(f"{'=' * 60}")
+                
+                # Get total pages for this source
+                source_total_pages = await self.get_total_pages(source_url)
+                if max_pages_per_source:
+                    source_max_pages = min(max_pages_per_source, source_total_pages)
+                else:
+                    source_max_pages = source_total_pages
+                
+                total_pages_all_sources += source_max_pages
+                logger.info(f"Source has {source_total_pages} total pages, scraping {source_max_pages} pages")
+                
+                # Track stats for this source
+                source_start_scraped = self.properties_scraped
+                source_start_inserted = self.properties_inserted
+                
+                # Scrape pages for this source
+                await self._scrape_source_pages(
+                    source_url=source_url,
+                    operation_type=operation_type,
+                    source_name=source_name,
+                    max_pages=source_max_pages,
+                    start_page=start_page
+                )
+                
+                # Record source stats
+                source_stats[source_name] = {
+                    "operation_type": operation_type,
+                    "pages_scraped": source_max_pages,
+                    "properties_scraped": self.properties_scraped - source_start_scraped,
+                    "properties_inserted": self.properties_inserted - source_start_inserted
+                }
+                
+                logger.info(f"Completed {source_name}: {source_stats[source_name]['properties_inserted']} properties inserted")
+            
+            # Update session with total pages
+            await self.update_session_progress(total_pages=total_pages_all_sources)
+            
+            # Mark session as completed
+            await self.update_session_progress(
+                status="completed",
+                completed_at=datetime.utcnow().isoformat()
+            )
+            
+            # Print summary
+            logger.info(f"\n{'=' * 60}")
+            logger.info(f"SCRAPING COMPLETED - SUMMARY")
+            logger.info(f"{'=' * 60}")
+            for source_name, stats in source_stats.items():
+                logger.info(f"  {source_name} ({stats['operation_type']}): "
+                          f"{stats['properties_inserted']} properties from {stats['pages_scraped']} pages")
+            logger.info(f"{'=' * 60}")
+            logger.info(f"TOTAL: {self.properties_scraped} scraped, "
+                       f"{self.properties_inserted} inserted to staging, "
+                       f"{self.errors_count} errors")
+            logger.info(f"{'=' * 60}")
+            
+            # Run sync workflow if enabled
+            if auto_sync and self.session_id:
+                logger.info("\nStarting automatic sync workflow...")
+                workflow_result = await self.orchestrator.daily_sync_workflow(self.session_id)
+                
+                if workflow_result.success:
+                    logger.info("Sync workflow completed successfully!")
+                    if workflow_result.sync_result:
+                        metrics = workflow_result.sync_result.metrics
+                        logger.info(f"New properties: {metrics.new_properties}")
+                        logger.info(f"Updated properties: {metrics.updated_properties}")
+                        logger.info(f"Removed properties: {metrics.removed_properties}")
+                        logger.info(f"Data quality score: {metrics.data_quality_score:.2f}")
+                else:
+                    logger.error(f"Sync workflow failed: {workflow_result.error_message}")
+            else:
+                logger.info("Auto-sync disabled. Data is in staging table.")
+                logger.info(f"To sync manually, run the sync workflow with session_id: {self.session_id}")
+        
+        except Exception as e:
+            logger.error(f"Fatal error during scraping: {e}")
+            await self.update_session_progress(
+                status="failed",
+                error_message=str(e),
+                completed_at=datetime.utcnow().isoformat()
+            )
+            raise
+    
+    async def _scrape_source_pages(self, source_url: str, operation_type: str, source_name: str,
+                                    max_pages: int, start_page: int = 1):
+        """Scrape pages from a single listing source with a specific operation_type"""
+        
+        for page_num in range(start_page, max_pages + 1):
+            try:
+                page_start_time = time.time()
+                
+                # Construct page URL for Pincali
+                if page_num == 1:
+                    page_url = source_url
+                else:
+                    # Pincali uses page parameter
+                    if '?' in source_url:
+                        page_url = f"{source_url}&page={page_num}"
+                    else:
+                        page_url = f"{source_url}?page={page_num}"
+                
+                # Scrape the page
+                properties = await self.scrape_property_list_page(page_url, page_num)
+                
+                logger.info(f"[{source_name}] Found {len(properties)} properties on page {page_num}. Scraping details...")
+                
+                # Process and save each property
+                for idx, prop_data in enumerate(properties, 1):
+                    if not prop_data.get("title") and not prop_data.get("link"):
+                        continue
+                    
+                    try:
+                        # Inject the operation_type from the source before extraction
+                        prop_data["operation_type"] = operation_type
+                        
+                        # First extract basic data from listing page
+                        cleaned_property = self.extract_property_details(prop_data)
+                        cleaned_property["page_number"] = page_num
+                        
+                        # Force the operation_type from the source (in case detail page overrides it)
+                        cleaned_property["operation_type"] = operation_type
+                        
+                        # Then scrape detailed information from property detail page
+                        if prop_data.get("link"):
+                            detail_url = urljoin(self.base_url, prop_data["link"])
+                            logger.info(f"[{source_name}][{idx}/{len(properties)}] Scraping details: {cleaned_property.get('title', 'Unknown')[:50]}...")
+                            detailed_data = await self.scrape_property_details(detail_url)
+                            
+                            # Merge detailed data with basic data
+                            if detailed_data:
+                                # Preserve the source operation_type (don't let detail page override it)
+                                source_op_type = cleaned_property["operation_type"]
+                                cleaned_property.update(detailed_data)
+                                cleaned_property["operation_type"] = source_op_type
+                            
+                            # Rate limiting for detail page requests
+                            await asyncio.sleep(1)  # 1 second delay between detail requests
+                        
+                        # Save to staging table
+                        await self.save_property_to_staging(cleaned_property)
+                        self.properties_scraped += 1
+                        
+                    except Exception as e:
+                        logger.error(f"[{source_name}] Error processing property {idx}/{len(properties)}: {e}")
+                        continue
+                
+                # Update progress
+                await self.update_session_progress()
+                
+                # Rate limiting - be respectful to Pincali
+                await asyncio.sleep(3)  # 3 second delay between pages
+                
+                page_elapsed = time.time() - page_start_time
+                logger.info(f"[{source_name}] Completed page {page_num}/{max_pages} in {page_elapsed:.1f}s. "
+                          f"Total: {self.properties_scraped} scraped, {self.properties_inserted} inserted")
+            
+            except Exception as e:
+                logger.error(f"[{source_name}] Error on page {page_num}: {e}")
+                continue
+    
+    async def scrape_all_pages(self, max_pages: Optional[int] = None, start_page: int = 1, auto_sync: bool = True,
+                               source_url: Optional[str] = None, operation_type: Optional[str] = None):
+        """Scrape property listing pages from a single source and optionally run sync workflow
+        
+        This method scrapes from a single listing source. For scraping all sources, use scrape_all_sources().
+        
+        Args:
+            max_pages: Maximum pages to scrape (None = auto-detect)
+            start_page: Starting page number
+            auto_sync: Whether to run sync workflow after scraping
+            source_url: URL to scrape from (defaults to properties-for-sale)
+            operation_type: Operation type for properties (defaults to 'sale')
+        """
+        # Use provided URL or default
+        target_url = source_url or self.target_url
+        op_type = operation_type or "sale"
+        
         try:
             # Create scraping session
             await self.create_scraping_session()
             
             # Determine total pages
             if max_pages is None:
-                max_pages = await self.get_total_pages(self.target_url)
+                max_pages = await self.get_total_pages(target_url)
             
             await self.update_session_progress(total_pages=max_pages)
             
-            logger.info(f"Starting to scrape {max_pages} pages, starting from page {start_page}")
+            logger.info(f"Starting to scrape {max_pages} pages from {target_url}")
+            logger.info(f"Operation type: {op_type}, starting from page {start_page}")
             
-            for page_num in range(start_page, max_pages + 1):
-                try:
-                    page_start_time = time.time()
-                    
-                    # Construct page URL for Pincali
-                    if page_num == 1:
-                        page_url = self.target_url
-                    else:
-                        # Pincali uses page parameter
-                        if '?' in self.target_url:
-                            page_url = f"{self.target_url}&page={page_num}"
-                        else:
-                            page_url = f"{self.target_url}?page={page_num}"
-                    
-                    # Scrape the page
-                    properties = await self.scrape_property_list_page(page_url, page_num)
-                    
-                    logger.info(f"Found {len(properties)} properties on page {page_num}. Scraping details...")
-                    
-                    # Process and save each property
-                    for idx, prop_data in enumerate(properties, 1):
-                        if not prop_data.get("title") and not prop_data.get("link"):
-                            continue
-                        
-                        try:
-                            # First extract basic data from listing page
-                            cleaned_property = self.extract_property_details(prop_data)
-                            cleaned_property["page_number"] = page_num
-                            
-                            # Then scrape detailed information from property detail page
-                            if prop_data.get("link"):
-                                detail_url = urljoin(self.base_url, prop_data["link"])
-                                logger.info(f"[{idx}/{len(properties)}] Scraping details: {cleaned_property.get('title', 'Unknown')[:60]}...")
-                                detailed_data = await self.scrape_property_details(detail_url)
-                                
-                                # Merge detailed data with basic data
-                                if detailed_data:
-                                    cleaned_property.update(detailed_data)
-                                
-                                # Rate limiting for detail page requests
-                                await asyncio.sleep(1)  # 1 second delay between detail requests
-                            
-                            # Save to staging table instead of live table
-                            await self.save_property_to_staging(cleaned_property)
-                            self.properties_scraped += 1
-                            
-                        except Exception as e:
-                            logger.error(f"Error processing property {idx}/{len(properties)}: {e}")
-                            continue
-                    
-                    # Update progress
-                    await self.update_session_progress()
-                    
-                    # Rate limiting - be respectful to Pincali
-                    await asyncio.sleep(3)  # 3 second delay between pages
-                    
-                    page_elapsed = time.time() - page_start_time
-                    logger.info(f"Completed page {page_num}/{max_pages} in {page_elapsed:.1f}s. "
-                              f"Total properties: {self.properties_scraped}, "
-                              f"Inserted to staging: {self.properties_inserted}")
-                
-                except Exception as e:
-                    logger.error(f"Error on page {page_num}: {e}")
-                    continue
+            # Scrape pages
+            await self._scrape_source_pages(
+                source_url=target_url,
+                operation_type=op_type,
+                source_name=op_type.capitalize(),
+                max_pages=max_pages,
+                start_page=start_page
+            )
             
             # Mark session as completed
             await self.update_session_progress(
@@ -1386,21 +1582,50 @@ async def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python enhanced_property_scraper.py --pages 1          # Scrape only 1 page
-  python enhanced_property_scraper.py --pages 5          # Scrape 5 pages
-  python enhanced_property_scraper.py --pages 10 --start 3  # Scrape pages 3-12
-  python enhanced_property_scraper.py                    # Scrape default 10 pages
-  python enhanced_property_scraper.py --all              # Scrape ALL pages (auto-detect total)
-  python enhanced_property_scraper.py --all --start 5    # Scrape all pages starting from page 5
-  python enhanced_property_scraper.py --no-sync --pages 3   # Scrape without auto-sync
+  # Scrape ALL sources (recommended for full scrape)
+  python enhanced_property_scraper.py --all-sources           # Scrape all 4 listing types (sale, rent, foreclosure, new_construction)
+  python enhanced_property_scraper.py --all-sources --pages 5 # Scrape 5 pages from each source
+  python enhanced_property_scraper.py --all-sources --all     # Scrape ALL pages from ALL sources
+  
+  # Scrape specific sources
+  python enhanced_property_scraper.py --sources sale rent     # Only scrape sale and rent listings
+  python enhanced_property_scraper.py --sources foreclosure   # Only scrape foreclosure listings
+  python enhanced_property_scraper.py --sources new_construction --pages 3  # Only new construction, 3 pages
+  
+  # Single source scraping (legacy mode)
+  python enhanced_property_scraper.py --pages 10              # Scrape 10 pages from default (sale) source
+  python enhanced_property_scraper.py --all                   # Scrape ALL pages from default source
+  python enhanced_property_scraper.py --pages 5 --start 3     # Scrape pages 3-7 from default source
+  
+  # Other options
+  python enhanced_property_scraper.py --no-sync --pages 3     # Scrape without auto-sync
+
+Listing Sources (operation_types):
+  - sale           : Properties for sale
+  - rent           : Properties for rent  
+  - foreclosure    : Foreclosure properties (remates)
+  - new_construction : New construction / under construction properties
         """
+    )
+    
+    parser.add_argument(
+        '--all-sources',
+        action='store_true',
+        help='Scrape from ALL listing sources (sale, rent, foreclosure, new_construction)'
+    )
+    
+    parser.add_argument(
+        '--sources',
+        nargs='+',
+        choices=['sale', 'rent', 'foreclosure', 'new_construction'],
+        help='Specific sources to scrape (e.g., --sources sale rent)'
     )
     
     parser.add_argument(
         '--pages', 
         type=int, 
         default=10,
-        help='Number of pages to scrape (default: 10)'
+        help='Number of pages to scrape per source (default: 10)'
     )
     
     parser.add_argument(
@@ -1448,35 +1673,77 @@ Examples:
     scraper = EnhancedPincaliScraper()
     
     # Determine max_pages based on --all flag
-    if args.all:
-        max_pages_to_scrape = None  # Triggers auto-detection
-        logger.info(f"Starting Enhanced Pincali scraper with staging architecture")
-        logger.info(f"Mode: Scrape ALL pages (auto-detect)")
+    max_pages_to_scrape = None if args.all else args.pages
+    
+    # Determine which mode to use
+    if args.all_sources or args.sources:
+        # Multi-source mode
+        sources_to_use = args.sources if args.sources else None  # None means all sources
+        
+        logger.info(f"=" * 60)
+        logger.info(f"Starting Enhanced Pincali scraper - MULTI-SOURCE MODE")
+        logger.info(f"=" * 60)
+        if sources_to_use:
+            logger.info(f"Sources: {', '.join(sources_to_use)}")
+        else:
+            logger.info(f"Sources: ALL (sale, rent, foreclosure, new_construction)")
+        
+        if args.all:
+            logger.info(f"Pages: ALL (auto-detect per source)")
+        else:
+            logger.info(f"Pages per source: {args.pages}")
         logger.info(f"Starting from page: {args.start}")
+        logger.info(f"Auto-sync: {'No' if args.no_sync else 'Yes'}")
+        logger.info(f"=" * 60)
+        
+        try:
+            await scraper.scrape_all_sources(
+                max_pages_per_source=max_pages_to_scrape,
+                start_page=args.start,
+                auto_sync=not args.no_sync,
+                sources=sources_to_use
+            )
+        except KeyboardInterrupt:
+            logger.info("Scraping interrupted by user")
+            await scraper.update_session_progress(
+                status="paused",
+                completed_at=datetime.utcnow().isoformat()
+            )
+        except Exception as e:
+            logger.error(f"Scraping failed: {e}")
+            raise
     else:
-        max_pages_to_scrape = args.pages
-        logger.info(f"Starting Enhanced Pincali scraper with staging architecture")
-        logger.info(f"Pages to scrape: {args.pages}")
+        # Single source mode (legacy)
+        logger.info(f"=" * 60)
+        logger.info(f"Starting Enhanced Pincali scraper - SINGLE SOURCE MODE")
+        logger.info(f"=" * 60)
+        logger.info(f"Source: properties-for-sale (default)")
+        if args.all:
+            logger.info(f"Pages: ALL (auto-detect)")
+        else:
+            logger.info(f"Pages to scrape: {args.pages}")
+            logger.info(f"Page range: {args.start} to {args.start + args.pages - 1}")
         logger.info(f"Starting from page: {args.start}")
-        logger.info(f"Total pages: {args.start} to {args.start + args.pages - 1}")
-    
-    logger.info(f"Auto-sync: {'No' if args.no_sync else 'Yes'}")
-    
-    try:
-        await scraper.scrape_all_pages(
-            max_pages=max_pages_to_scrape, 
-            start_page=args.start, 
-            auto_sync=not args.no_sync
-        )
-    except KeyboardInterrupt:
-        logger.info("Scraping interrupted by user")
-        await scraper.update_session_progress(
-            status="paused",
-            completed_at=datetime.utcnow().isoformat()
-        )
-    except Exception as e:
-        logger.error(f"Scraping failed: {e}")
-        raise
+        logger.info(f"Auto-sync: {'No' if args.no_sync else 'Yes'}")
+        logger.info(f"=" * 60)
+        logger.info(f"TIP: Use --all-sources to scrape from all listing types!")
+        logger.info(f"=" * 60)
+        
+        try:
+            await scraper.scrape_all_pages(
+                max_pages=max_pages_to_scrape, 
+                start_page=args.start, 
+                auto_sync=not args.no_sync
+            )
+        except KeyboardInterrupt:
+            logger.info("Scraping interrupted by user")
+            await scraper.update_session_progress(
+                status="paused",
+                completed_at=datetime.utcnow().isoformat()
+            )
+        except Exception as e:
+            logger.error(f"Scraping failed: {e}")
+            raise
 
 if __name__ == "__main__":
     asyncio.run(main()) 

@@ -48,17 +48,27 @@ PropScraper is a Python-based web scraping system designed to extract property l
 
 ### 1. Enhanced Pincali Scraper (`EnhancedPincaliScraper`)
 
-The enhanced scraping engine implements a dual-table architecture with staging and live tables:
+The enhanced scraping engine implements a dual-table architecture with staging and live tables, supporting multiple listing sources.
+
+#### Listing Sources:
+The scraper crawls 4 distinct listing types, each with its own `operation_type`:
+
+| Source | URL | Operation Type |
+|--------|-----|----------------|
+| For Sale | `/en/properties/properties-for-sale` | `sale` |
+| For Rent | `/en/properties/properties-for-rent` | `rent` |
+| Foreclosure | `/en/properties/properties-for-foreclosure` | `foreclosure` |
+| New Construction | `/en/properties/under-construction` | `new_construction` |
 
 #### Key Components:
+- **Multi-Source Scraping**: Scrapes all 4 listing types with proper `operation_type` assignment
 - **Cookie-Based Authentication**: Loads saved login cookies for authenticated requests
 - **Session Management**: Tracks scraping progress and handles interruptions
-- **Data Extraction**: Parses property listings using proven CSS selectors from working scraper
+- **Data Extraction**: Parses property listings using proven CSS selectors
 - **Playwright Integration**: Uses Playwright with cookies to extract hidden phone numbers
 - **Interactive Scraping**: Clicks "Send message" button to reveal contact information
 - **Staging Table Storage**: Saves raw scraped data to `property_scrapes_staging` table
 - **Services Integration**: Uses services architecture for data validation and sync
-- **Error Handling**: Comprehensive logging and error recovery
 - **Auto-Sync Workflow**: Automatically promotes validated data to live table
 
 #### Dual-Table Architecture:
@@ -70,51 +80,48 @@ The enhanced scraping engine implements a dual-table architecture with staging a
 #### Architecture Pattern:
 ```python
 class EnhancedPincaliScraper:
-    def __init__():
-        # Initialize browser config, database client, services orchestrator
-        self.orchestrator = PropertySyncOrchestrator(supabase)
-        # Load saved login cookies for authenticated requests
-        self.cookies = self.load_cookies()
+    # All listing sources with operation types
+    LISTING_SOURCES = [
+        {"name": "For Sale", "url": "...properties-for-sale", "operation_type": "sale"},
+        {"name": "For Rent", "url": "...properties-for-rent", "operation_type": "rent"},
+        {"name": "Foreclosure", "url": "...properties-for-foreclosure", "operation_type": "foreclosure"},
+        {"name": "New Construction", "url": "...under-construction", "operation_type": "new_construction"}
+    ]
     
-    def load_cookies():
-        # Load cookies from pincali_cookies.json
-        # Returns empty list if file doesn't exist (graceful degradation)
+    async def scrape_all_sources(sources=None, auto_sync=True):
+        # Scrapes all listing sources (or specified subset)
+        # Each source auto-detects its own page count
+        for source in LISTING_SOURCES:
+            await self._scrape_source_pages(source.url, source.operation_type)
+        # Auto-sync phase
+        if auto_sync:
+            await self.orchestrator.daily_sync_workflow(session_id)
     
-    async def scrape_all_pages(auto_sync=True):
-        # Main orchestration method
-        # Creates session → Scrapes pages → Saves to staging → Optionally runs sync
-        
-        # Scraping phase
+    async def _scrape_source_pages(source_url, operation_type):
+        # Scrapes pages from a single source
+        # Injects operation_type from source (not inferred from content)
         for page in pages:
             properties = await self.scrape_property_list_page(page)
             for prop in properties:
                 cleaned_data = self.extract_property_details(prop)
-                
-                # Scrape detail page with Playwright + cookies
-                detail_url = prop.get("link")
+                cleaned_data["operation_type"] = operation_type  # From source
                 detailed_data = await self.scrape_property_details(detail_url)
-                # This method now:
-                # 1. Launches Playwright browser with cookies
-                # 2. Navigates to property page
-                # 3. Clicks "Send message" button
-                # 4. Extracts phone numbers from revealed content
-                # 5. Extracts all other property details
-                
-                cleaned_data.update(detailed_data)
                 await self.save_property_to_staging(cleaned_data)
-        
-        # Auto-sync phase (if enabled)
-        if auto_sync:
-            workflow_result = await self.orchestrator.daily_sync_workflow(session_id)
     
     async def scrape_property_details(detail_url):
         # Uses Playwright with cookies to scrape detail page
         # Clicks "Send message" button to reveal phone numbers
-        # Extracts phone numbers from .publisher-phones divs
         # Returns dict with all property details including phone numbers
-    
-    async def save_property_to_staging():
-        # Save raw data to staging table for later processing
+```
+
+#### Command-Line Usage:
+```bash
+# Scrape all 4 sources (recommended)
+python enhanced_property_scraper.py --all-sources --all
+
+# Scrape specific sources only
+python enhanced_property_scraper.py --sources sale rent --pages 10
+python enhanced_property_scraper.py --sources foreclosure new_construction
 ```
 
 #### Technology Stack:
@@ -668,6 +675,14 @@ Requests → HTTP Client (for listing pages)
 
 ## Version History & Evolution
 
+### v2.2 (Multi-Source Scraping with Extended Operation Types)
+- **Multi-Source Architecture**: Scrapes from 4 distinct listing sources (sale, rent, foreclosure, new_construction)
+- **New Operation Types**: Added `foreclosure` and `new_construction` operation types
+- **Source-Based Operation Type**: Operation type is set from source URL, not inferred from content
+- **Independent Page Detection**: Each source auto-detects its own page count
+- **Source Selection**: Command-line support for scraping specific sources or all sources
+- **Per-Source Statistics**: Detailed tracking and summary for each listing source
+
 ### v2.1 (Authenticated Scraping with Phone Number Extraction)
 - **Cookie-Based Authentication**: Load and use saved browser cookies for authenticated requests
 - **Playwright Integration**: Browser automation for interactive scraping of detail pages
@@ -718,6 +733,7 @@ Requests → HTTP Client (for listing pages)
 This architecture provides a robust, scalable, and maintainable foundation for web scraping operations while respecting target site resources and handling common challenges like anti-bot measures. 
 
 **Key Innovations:**
+- **v2.2**: Multi-source scraping enables complete property inventory capture across sale, rent, foreclosure, and new construction listings
 - **v2.1**: Authenticated scraping with cookie-based sessions enables extraction of previously inaccessible data like phone numbers through interactive browser automation
 - **v2.0**: Dual-table architecture with staging and live tables provides safe, validated data promotion with comprehensive change tracking
 - **v1.3**: Enhanced parsing with intelligent data extraction significantly improves data quality and structure
