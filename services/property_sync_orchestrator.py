@@ -473,4 +473,56 @@ class PropertySyncOrchestrator:
                 success=False,
                 session_id=session_id,
                 error_message=str(e)
-            ) 
+            )
+    
+    async def run_hybrid_sync(self, tier_level: int = 2) -> Dict:
+        """
+        Run the hybrid 4-tier sync system.
+        
+        This method delegates to the TierOrchestrator to execute the appropriate
+        tier workflow. It serves as the integration point between the existing
+        PropertySyncOrchestrator and the new 4-tier system.
+        
+        Args:
+            tier_level: Which tier to run (1=Hot Listings, 2=Daily, 3=Weekly, 4=Monthly)
+            
+        Returns:
+            Dictionary with tier execution results
+        """
+        from .tier_orchestrator import TierOrchestrator
+        from config.tier_config import get_config
+        
+        logger.info(f"Starting hybrid sync for tier {tier_level}")
+        start_time = datetime.utcnow()
+        
+        try:
+            config = get_config()
+            orchestrator = TierOrchestrator(self.supabase, config)
+            
+            # Run the specified tier
+            result = await orchestrator.run_tier(tier_level)
+            
+            execution_time = int((datetime.utcnow() - start_time).total_seconds() * 1000)
+            
+            return {
+                'success': result.success,
+                'tier_level': result.tier_level,
+                'tier_name': result.tier_name,
+                'duration_seconds': result.duration_seconds,
+                'manifest_entries_scanned': result.manifest_entries_scanned,
+                'new_properties_found': result.new_properties_found,
+                'price_changes_detected': result.price_changes_detected,
+                'removals_confirmed': result.removals_confirmed,
+                'properties_scraped': result.properties_scraped,
+                'errors': result.errors,
+                'execution_time_ms': execution_time
+            }
+            
+        except Exception as e:
+            error_msg = f"Error in hybrid sync: {str(e)}"
+            logger.error(error_msg)
+            return {
+                'success': False,
+                'tier_level': tier_level,
+                'error': error_msg
+            } 

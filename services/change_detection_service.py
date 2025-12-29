@@ -527,4 +527,202 @@ class ChangeDetectionService:
             
         except Exception as e:
             logger.error(f"Error saving change records: {str(e)}")
-            raise 
+            raise
+    
+    # ========== Manifest-based Change Detection Methods ==========
+    # These methods support the Hybrid 4-Tier Sync System
+    
+    async def detect_new_from_manifest(self, manifest_entries: List[Dict]) -> List[str]:
+        """
+        Detect new properties from manifest data by comparing against properties_live.
+        
+        This method is used by the ManifestScanService to quickly identify
+        new listings without fetching full property details.
+        
+        Args:
+            manifest_entries: List of manifest entries with 'property_id' field
+            
+        Returns:
+            List of property IDs that are new (not in properties_live)
+        """
+        if not manifest_entries:
+            return []
+        
+        try:
+            # Extract property IDs from manifest
+            manifest_ids = [entry.get('property_id') for entry in manifest_entries if entry.get('property_id')]
+            
+            if not manifest_ids:
+                return []
+            
+            # Query properties_live for existing IDs
+            # Process in batches to avoid query size limits
+            batch_size = 500
+            existing_ids = set()
+            
+            for i in range(0, len(manifest_ids), batch_size):
+                batch = manifest_ids[i:i + batch_size]
+                response = self.supabase.table('properties_live').select('property_id').in_('property_id', batch).execute()
+                existing_ids.update(item['property_id'] for item in response.data)
+            
+            # Find IDs not in live table
+            new_ids = [pid for pid in manifest_ids if pid not in existing_ids]
+            
+            logger.info(f"Manifest check: {len(manifest_ids)} entries, {len(new_ids)} new properties")
+            return new_ids
+            
+        except Exception as e:
+            logger.error(f"Error detecting new properties from manifest: {str(e)}")
+            return []
+    
+    async def detect_price_changes_from_manifest(self, manifest_entries: List[Dict]) -> List[Dict]:
+        """
+        Detect price changes by comparing manifest prices against properties_live.
+        
+        This method enables fast price change detection without full scraping.
+        Only properties with visible price changes are flagged for full scrape verification.
+        
+        Args:
+            manifest_entries: List of manifest entries with 'property_id' and 'price' fields
+            
+        Returns:
+            List of dicts with property_id, old_price, new_price, and price_change_percent
+        """
+        if not manifest_entries:
+            return []
+        
+        try:
+            # Filter entries that have both property_id and price
+            entries_with_price = [
+                entry for entry in manifest_entries 
+                if entry.get('property_id') and entry.get('price') is not None
+            ]
+            
+            if not entries_with_price:
+                return []
+            
+            property_ids = [entry['property_id'] for entry in entries_with_price]
+            manifest_prices = {entry['property_id']: entry.get('price') for entry in entries_with_price}
+            
+            # Query live prices in batches
+            batch_size = 500
+            live_prices = {}
+            
+            for i in range(0, len(property_ids), batch_size):
+                batch = property_ids[i:i + batch_size]
+                response = self.supabase.table('properties_live').select(
+                    'property_id, price, price_at_last_manifest'
+                ).in_('property_id', batch).execute()
+                
+                for item in response.data:
+                    live_prices[item['property_id']] = {
+                        'price': item.get('price'),
+                        'price_at_last_manifest': item.get('price_at_last_manifest')
+                    }
+            
+            # Compare prices and detect changes
+            price_changes = []
+            price_change_threshold = 0.01  # 1% threshold
+            
+            for property_id, manifest_price in manifest_prices.items():
+                if property_id not in live_prices:
+                    continue  # Skip new properties (handled by detect_new_from_manifest)
+                
+                live_data = live_prices[property_id]
+                live_price = live_data.get('price')
+                
+                if live_price is None or live_price == 0:
+                    continue
+                
+                try:
+                    manifest_price_float = float(manifest_price)
+                    live_price_float = float(live_price)
+                    
+                    if live_price_float == 0:
+                        continue
+                    
+                    price_diff = manifest_price_float - live_price_float
+                    price_change_percent = abs(price_diff) / live_price_float
+                    
+                    if price_change_percent > price_change_threshold:
+                        price_changes.append({
+                            'property_id': property_id,
+                            'old_price': live_price_float,
+                            'new_price': manifest_price_float,
+                            'price_change_percent': price_change_percent,
+                            'price_diff': price_diff,
+                            'direction': 'increase' if price_diff > 0 else 'decrease'
+                        })
+                        
+                except (ValueError, TypeError):
+                    continue
+            
+            logger.info(f"Price change detection: {len(entries_with_price)} entries checked, "
+                       f"{len(price_changes)} price changes detected")
+            return price_changes
+            
+        except Exception as e:
+            logger.error(f"Error detecting price changes from manifest: {str(e)}")
+            return []
+    
+    async def get_stale_properties(self, stale_days: int = 14, limit: int = 1000) -> List[Dict]:
+        """
+        Get properties that haven't been fully scraped recently.
+        
+        Used by Tier 3 (Weekly Deep Scan) to identify properties needing refresh.
+        
+        Args:
+            stale_days: Number of days after which a property is considered stale
+            limit: Maximum number of properties to return
+            
+        Returns:
+            List of property dicts with property_id, source_url, and last_full_scrape_at
+        """
+        try:
+            cutoff_date = datetime.utcnow() - timedelta(days=stale_days)
+            
+            # Find active properties not scraped recently
+            response = self.supabase.table('properties_live').select(
+                'property_id, source_url, last_full_scrape_at, data_staleness_days'
+            ).eq('status', 'active').or_(
+                f"last_full_scrape_at.is.null,last_full_scrape_at.lt.{cutoff_date.isoformat()}"
+            ).order('last_full_scrape_at', nullsfirst=True).limit(limit).execute()
+            
+            logger.info(f"Found {len(response.data)} stale properties (>{stale_days} days old)")
+            return response.data
+            
+        except Exception as e:
+            logger.error(f"Error getting stale properties: {str(e)}")
+            return []
+    
+    async def get_random_sample_for_verification(self, sample_size: int = 100) -> List[Dict]:
+        """
+        Get a random sample of active properties for data quality verification.
+        
+        Used by Tier 4 (Monthly Refresh) to verify data accuracy across the dataset.
+        
+        Args:
+            sample_size: Number of random properties to sample
+            
+        Returns:
+            List of property dicts for verification
+        """
+        try:
+            # Use database random sampling if available, otherwise fetch and sample
+            response = self.supabase.table('properties_live').select(
+                'property_id, source_url, price, title, last_full_scrape_at'
+            ).eq('status', 'active').limit(sample_size * 3).execute()  # Fetch extra for randomization
+            
+            if not response.data:
+                return []
+            
+            # Random sample from results
+            import random
+            sample = random.sample(response.data, min(sample_size, len(response.data)))
+            
+            logger.info(f"Selected {len(sample)} random properties for verification")
+            return sample
+            
+        except Exception as e:
+            logger.error(f"Error getting random sample: {str(e)}")
+            return [] 

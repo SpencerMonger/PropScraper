@@ -9,28 +9,28 @@ PropScraper is a Python-based web scraping system designed to extract property l
 ### High-Level Architecture
 
 ```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Web Targets   │    │ Enhanced Scraper│    │   Staging Table │
-│  (Pincali.com   │◄──►│    System       │◄──►│property_scrapes_│
-│ Inmuebles24.com)│    │                 │    │    staging      │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-                              │                         │
-                              ▼                         ▼
-                    ┌─────────────────┐    ┌─────────────────┐
-                    │ SolveCaptcha    │    │Services Layer   │
-                    │     API         │    │• Change Detection│
-                    └─────────────────┘    │• Data Quality   │
-                                          │• Sync Service   │
-                                          │• Orchestrator   │
-                                          └─────────────────┘
-                                                    │
-                                                    ▼
-                                          ┌─────────────────┐
-                                          │   Live Table    │
-                                          │ properties_live │
-                                          │  (Production)   │
-                                          └─────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                    HYBRID 4-TIER SYNC SYSTEM                    │
+├─────────────────────────────────────────────────────────────────┤
+│  Tier 1: Hot Listings (4h)  │  Tier 2: Daily Sync (24h)        │
+│  Tier 3: Weekly Deep (7d)   │  Tier 4: Monthly Refresh (30d)   │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+          ┌───────────────────┼───────────────────┐
+          ▼                   ▼                   ▼
+┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐
+│ Manifest Scan   │  │  Diff Service   │  │  Scrape Queue   │
+│ (HTTP - Fast)   │  │ (New/Changed)   │  │  (Prioritized)  │
+└─────────────────┘  └─────────────────┘  └─────────────────┘
+          │                   │                   │
+          ▼                   ▼                   ▼
+┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐
+│property_manifest│  │ properties_live │  │  Full Scraper   │
+│   (Lightweight) │  │   (Production)  │  │  (Playwright)   │
+└─────────────────┘  └─────────────────┘  └─────────────────┘
 ```
+
+**Key Concept:** Manifest scanning (HTTP) is fast (~4 min/source). Full scraping (Playwright) is slow but only runs on new/changed properties.
 
 ### Core Components
 
@@ -181,7 +181,71 @@ The system implements a comprehensive services layer for data management:
        └── Handle removed properties
 ```
 
-### 2. Captcha Solver Integration
+### 3. Hybrid 4-Tier Sync System
+
+The hybrid sync system dramatically reduces sync time from ~28 days to hours by using fast manifest scans combined with targeted full scraping.
+
+#### Tier Overview
+
+| Tier | Name | Frequency | Purpose |
+|------|------|-----------|---------|
+| 1 | Hot Listings | 4 hours | Catch new listings quickly (first 10 pages) |
+| 2 | Daily Sync | 24 hours | Full manifest scan, detect all changes |
+| 3 | Weekly Deep | 7 days | Refresh stale property data |
+| 4 | Monthly | 30 days | Random sample verification |
+
+#### Data Flow
+
+```
+1. MANIFEST SCAN (Fast - HTTP only)
+   └── Scan listing pages → Extract: property_id, URL, price, title
+   └── Save to: property_manifest table
+   
+2. DIFF DETECTION (Compare manifest vs live)
+   ├── New properties (in manifest, not in live)
+   ├── Price changes (manifest price ≠ live price)
+   └── Removals (in live, missing from manifest)
+
+3. QUEUE FOR SCRAPING (Priority-based)
+   ├── Priority 1: New properties
+   ├── Priority 2: Price changes
+   ├── Priority 3: Stale data
+   └── Priority 4: Random verification
+
+4. PROCESS QUEUE (Playwright - slower but thorough)
+   └── Full detail page scraping → Update properties_live
+```
+
+#### New Services
+
+| Service | File | Purpose |
+|---------|------|---------|
+| ManifestScanService | `manifest_scan_service.py` | Fast HTTP scanning of listing pages |
+| PropertyDiffService | `property_diff_service.py` | Compare manifest vs live database |
+| ScrapeQueueService | `scrape_queue_service.py` | Priority queue management |
+| TierOrchestrator | `tier_orchestrator.py` | Coordinate tier execution |
+| SchedulerService | `scheduler_service.py` | Schedule-based tier triggering |
+
+#### New Database Tables
+
+| Table | Purpose |
+|-------|---------|
+| `property_manifest` | Lightweight property index (ID, URL, price, coords) |
+| `scrape_queue` | Priority queue for targeted scraping |
+| `sync_runs` | Track tier execution history |
+
+#### CLI Usage
+
+```bash
+python tier_sync_cli.py status          # Check tier schedules
+python tier_sync_cli.py run-tier 2      # Run daily sync
+python tier_sync_cli.py process-queue   # Scrape queued items
+python tier_sync_cli.py daemon          # Run continuously
+```
+
+See `commands.md` for full CLI reference.
+
+### 5. Captcha Solver Integration
 
 #### Purpose:
 Handles anti-bot measures including Cloudflare Turnstile, reCAPTCHA v2/v3, and hCaptcha challenges.
@@ -208,7 +272,7 @@ class CrawlerWithCaptchaSolver:
 - **JavaScript Injection**: Automatically submits solved captchas
 - **Retry Logic**: Multiple attempts with exponential backoff
 
-### 3. Database Architecture
+### 6. Database Architecture
 
 #### Schema Design:
 The system uses a PostgreSQL database through Supabase with a dual-table architecture and supporting tables:
@@ -293,7 +357,7 @@ The system uses a PostgreSQL database through Supabase with a dual-table archite
 - **Triggers**: Automatic timestamp updates
 - **JSON Fields**: Flexible storage for variable property features
 
-### 4. Testing Framework
+### 7. Testing Framework
 
 #### Test Categories:
 
@@ -675,6 +739,16 @@ Requests → HTTP Client (for listing pages)
 
 ## Version History & Evolution
 
+### v2.3 (Hybrid 4-Tier Sync System)
+- **4-Tier Architecture**: Hot Listings (4h), Daily Sync (24h), Weekly Deep (7d), Monthly Refresh (30d)
+- **Manifest Scanning**: Fast HTTP-based listing page scanning without detail page visits
+- **Smart Diffing**: Detect new properties and price changes from manifest data
+- **Priority Queue**: Targeted scraping based on priority (new > price changes > stale > verification)
+- **New Services**: ManifestScanService, PropertyDiffService, ScrapeQueueService, TierOrchestrator, SchedulerService
+- **New Tables**: property_manifest, scrape_queue, sync_runs
+- **CLI Interface**: `tier_sync_cli.py` for tier management and monitoring
+- **Time Savings**: Reduces sync time from ~28 days to hours
+
 ### v2.2 (Multi-Source Scraping with Extended Operation Types)
 - **Multi-Source Architecture**: Scrapes from 4 distinct listing sources (sale, rent, foreclosure, new_construction)
 - **New Operation Types**: Added `foreclosure` and `new_construction` operation types
@@ -733,6 +807,7 @@ Requests → HTTP Client (for listing pages)
 This architecture provides a robust, scalable, and maintainable foundation for web scraping operations while respecting target site resources and handling common challenges like anti-bot measures. 
 
 **Key Innovations:**
+- **v2.3**: Hybrid 4-tier sync system reduces sync time from ~28 days to hours using fast manifest scans + targeted full scraping
 - **v2.2**: Multi-source scraping enables complete property inventory capture across sale, rent, foreclosure, and new construction listings
 - **v2.1**: Authenticated scraping with cookie-based sessions enables extraction of previously inaccessible data like phone numbers through interactive browser automation
 - **v2.0**: Dual-table architecture with staging and live tables provides safe, validated data promotion with comprehensive change tracking

@@ -50,83 +50,112 @@ class SchemaDocGenerator:
         
         print(f"Connecting to database...")
         
-    def get_connection(self):
-        """Get a PostgreSQL database connection"""
-        return psycopg2.connect(self.connection_string)
+    def get_connection(self, statement_timeout_ms=60000):
+        """Get a PostgreSQL database connection with configurable timeout"""
+        conn = psycopg2.connect(self.connection_string)
+        cursor = conn.cursor()
+        # Set a longer statement timeout (default 60 seconds)
+        cursor.execute(f"SET statement_timeout = {statement_timeout_ms}")
+        cursor.close()
+        return conn
         
     def get_tables_info(self):
-        """Get all tables and their column information"""
+        """Get all tables and their column information using separate, faster queries"""
         try:
-            conn = self.get_connection()
+            conn = self.get_connection(statement_timeout_ms=120000)  # 2 minute timeout
             cursor = conn.cursor()
             
-            # Query to get all tables and columns
-            query = """
+            # Step 1: Get tables and columns (simple query, no JOINs with constraints)
+            print("   Fetching tables and columns...")
+            columns_query = """
             SELECT 
-                t.table_name,
-                t.table_type,
+                c.table_name,
+                'BASE TABLE' as table_type,
                 c.column_name,
                 c.data_type,
                 c.character_maximum_length,
                 c.is_nullable,
                 c.column_default,
-                c.ordinal_position,
-                CASE 
-                    WHEN pk.column_name IS NOT NULL THEN 'YES'
-                    ELSE 'NO'
-                END as is_primary_key,
-                CASE 
-                    WHEN fk.column_name IS NOT NULL THEN fk.foreign_table_name || '(' || fk.foreign_column_name || ')'
-                    ELSE NULL
-                END as foreign_key_reference
-            FROM information_schema.tables t
-            LEFT JOIN information_schema.columns c ON t.table_name = c.table_name AND t.table_schema = c.table_schema
-            LEFT JOIN (
-                SELECT 
-                    kcu.table_name,
-                    kcu.column_name,
-                    kcu.table_schema
-                FROM information_schema.table_constraints tc
-                JOIN information_schema.key_column_usage kcu 
-                    ON tc.constraint_name = kcu.constraint_name
-                    AND tc.table_schema = kcu.table_schema
-                WHERE tc.constraint_type = 'PRIMARY KEY'
-            ) pk ON c.table_name = pk.table_name 
-                AND c.column_name = pk.column_name
-                AND c.table_schema = pk.table_schema
-            LEFT JOIN (
-                SELECT 
-                    kcu.table_name,
-                    kcu.column_name,
-                    kcu.table_schema,
-                    ccu.table_name AS foreign_table_name,
-                    ccu.column_name AS foreign_column_name
-                FROM information_schema.table_constraints AS tc
-                JOIN information_schema.key_column_usage AS kcu
-                    ON tc.constraint_name = kcu.constraint_name
-                    AND tc.table_schema = kcu.table_schema
-                JOIN information_schema.constraint_column_usage AS ccu
-                    ON ccu.constraint_name = tc.constraint_name
-                    AND ccu.table_schema = tc.table_schema
-                WHERE tc.constraint_type = 'FOREIGN KEY'
-            ) fk ON c.table_name = fk.table_name 
-                AND c.column_name = fk.column_name
-                AND c.table_schema = fk.table_schema
-            WHERE t.table_schema = 'public' 
+                c.ordinal_position
+            FROM information_schema.columns c
+            JOIN information_schema.tables t 
+                ON c.table_name = t.table_name 
+                AND c.table_schema = t.table_schema
+            WHERE c.table_schema = 'public'
                 AND t.table_type = 'BASE TABLE'
-                AND c.column_name IS NOT NULL
-            ORDER BY t.table_name, c.ordinal_position;
+            ORDER BY c.table_name, c.ordinal_position;
             """
+            cursor.execute(columns_query)
+            columns_data = cursor.fetchall()
+            print(f"   ✅ Found {len(columns_data)} columns")
             
-            cursor.execute(query)
-            columns = [desc[0] for desc in cursor.description]
-            results = []
+            # Step 2: Get primary keys (separate simple query using pg_catalog - faster)
+            print("   Fetching primary keys...")
+            pk_query = """
+            SELECT 
+                tc.table_name,
+                kcu.column_name
+            FROM pg_catalog.pg_constraint con
+            JOIN pg_catalog.pg_class rel ON rel.oid = con.conrelid
+            JOIN pg_catalog.pg_namespace nsp ON nsp.oid = rel.relnamespace
+            JOIN information_schema.table_constraints tc 
+                ON tc.constraint_name = con.conname AND tc.table_schema = nsp.nspname
+            JOIN information_schema.key_column_usage kcu 
+                ON kcu.constraint_name = tc.constraint_name AND kcu.table_schema = tc.table_schema
+            WHERE nsp.nspname = 'public' 
+                AND con.contype = 'p';
+            """
+            cursor.execute(pk_query)
+            pk_set = {(row[0], row[1]) for row in cursor.fetchall()}
+            print(f"   ✅ Found {len(pk_set)} primary key columns")
             
-            for row in cursor.fetchall():
-                results.append(dict(zip(columns, row)))
+            # Step 3: Get foreign keys (separate simple query)
+            print("   Fetching foreign keys...")
+            fk_query = """
+            SELECT 
+                tc.table_name,
+                kcu.column_name,
+                ccu.table_name AS foreign_table_name,
+                ccu.column_name AS foreign_column_name
+            FROM pg_catalog.pg_constraint con
+            JOIN pg_catalog.pg_class rel ON rel.oid = con.conrelid
+            JOIN pg_catalog.pg_namespace nsp ON nsp.oid = rel.relnamespace
+            JOIN information_schema.table_constraints tc 
+                ON tc.constraint_name = con.conname AND tc.table_schema = nsp.nspname
+            JOIN information_schema.key_column_usage kcu 
+                ON kcu.constraint_name = tc.constraint_name AND kcu.table_schema = tc.table_schema
+            JOIN information_schema.constraint_column_usage ccu 
+                ON ccu.constraint_name = tc.constraint_name AND ccu.table_schema = tc.table_schema
+            WHERE nsp.nspname = 'public' 
+                AND con.contype = 'f';
+            """
+            cursor.execute(fk_query)
+            fk_map = {(row[0], row[1]): f"{row[2]}({row[3]})" for row in cursor.fetchall()}
+            print(f"   ✅ Found {len(fk_map)} foreign key columns")
             
             cursor.close()
             conn.close()
+            
+            # Combine results in Python (faster than complex SQL JOINs)
+            results = []
+            for row in columns_data:
+                table_name, table_type, column_name, data_type, max_length, is_nullable, default, ordinal = row
+                
+                is_pk = 'YES' if (table_name, column_name) in pk_set else 'NO'
+                fk_ref = fk_map.get((table_name, column_name))
+                
+                results.append({
+                    'table_name': table_name,
+                    'table_type': table_type,
+                    'column_name': column_name,
+                    'data_type': data_type,
+                    'character_maximum_length': max_length,
+                    'is_nullable': is_nullable,
+                    'column_default': default,
+                    'ordinal_position': ordinal,
+                    'is_primary_key': is_pk,
+                    'foreign_key_reference': fk_ref
+                })
             
             print(f"✅ Found {len(results)} columns across tables")
             return results

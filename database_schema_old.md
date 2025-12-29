@@ -1,6 +1,6 @@
 # Database Schema Documentation
 
-**Generated on:** 2025-12-29 14:40:12  
+**Generated on:** 2025-12-29 12:06:52  
 **Database:** Supabase PostgreSQL  
 **Project:** PropScraper Property Management System
 
@@ -36,18 +36,15 @@ This document contains the complete database schema for the PropScraper system, 
 | `playlist_properties` | BASE TABLE | 4 | Application data storage |
 | `playlists` | BASE TABLE | 7 | Application data storage |
 | `properties` | BASE TABLE | 21 | Main properties table (legacy) |
-| `properties_live` | BASE TABLE | 60 | Production property data for frontend |
+| `properties_live` | BASE TABLE | 54 | Production property data for frontend |
 | `property_changes` | BASE TABLE | 10 | Audit log of property modifications |
-| `property_manifest` | BASE TABLE | 15 | Application data storage |
 | `property_scrapes_staging` | BASE TABLE | 50 | Raw scraped data before validation |
 | `property_showing_requests` | BASE TABLE | 28 | Application data storage |
 | `pulled_properties` | BASE TABLE | 58 | Legacy scraped properties storage |
-| `scrape_queue` | BASE TABLE | 17 | Application data storage |
 | `scraping_errors` | BASE TABLE | 8 | Log errors during scraping operations |
 | `scraping_sessions` | BASE TABLE | 14 | Track scraping job sessions and progress |
 | `showing_request_state_transitions` | BASE TABLE | 8 | Application data storage |
 | `sync_metadata` | BASE TABLE | 15 | Track data synchronization operations |
-| `sync_runs` | BASE TABLE | 20 | Application data storage |
 | `todo_items` | BASE TABLE | 8 | Task management items |
 | `todo_lists` | BASE TABLE | 7 | Task management lists |
 | `user_documents` | BASE TABLE | 14 | Application data storage |
@@ -436,12 +433,6 @@ This document contains the complete database schema for the PropScraper system, 
 | `data_completeness_score` | `numeric` | ✅ | `0.00` | - |
 | `verification_status` | `character varying` | ✅ | `'unverified'::character varying` | 📏 MAX(50) |
 | `search_vector` | `tsvector` | ✅ | `-` | - |
-| `last_manifest_seen_at` | `timestamp with time zone` | ✅ | `-` | - |
-| `consecutive_missing_count` | `integer` | ✅ | `0` | - |
-| `listing_status` | `character varying` | ✅ | `'active'::character varying` | 📏 MAX(50) |
-| `last_full_scrape_at` | `timestamp with time zone` | ✅ | `-` | - |
-| `scrape_priority` | `integer` | ✅ | `3` | - |
-| `price_at_last_manifest` | `numeric` | ✅ | `-` | - |
 
 ### property_changes
 
@@ -459,28 +450,6 @@ This document contains the complete database schema for the PropScraper system, 
 | `confidence_score` | `numeric` | ✅ | `1.00` | - |
 | `change_reason` | `text` | ✅ | `-` | - |
 | `created_at` | `timestamp with time zone` | ✅ | `now()` | - |
-
-### property_manifest
-
-**Purpose:** Application data storage
-
-| Column | Type | Nullable | Default | Constraints |
-|--------|------|----------|---------|-------------|
-| `id` | `uuid` | ❌ | `gen_random_uuid()` | 🔑 PRIMARY KEY |
-| `property_id` | `character varying` | ❌ | `-` | 📏 MAX(255) |
-| `source_url` | `text` | ❌ | `-` | - |
-| `listing_page_price` | `numeric` | ✅ | `-` | - |
-| `listing_page_title` | `character varying` | ✅ | `-` | 📏 MAX(500) |
-| `latitude` | `numeric` | ✅ | `-` | - |
-| `longitude` | `numeric` | ✅ | `-` | - |
-| `first_seen_at` | `timestamp with time zone` | ✅ | `now()` | - |
-| `last_seen_at` | `timestamp with time zone` | ✅ | `now()` | - |
-| `seen_in_session_id` | `uuid` | ✅ | `-` | 🔗 FK → scraping_sessions(id) |
-| `is_new` | `boolean` | ✅ | `true` | - |
-| `needs_full_scrape` | `boolean` | ✅ | `true` | - |
-| `price_changed` | `boolean` | ✅ | `false` | - |
-| `created_at` | `timestamp with time zone` | ✅ | `now()` | - |
-| `updated_at` | `timestamp with time zone` | ✅ | `now()` | - |
 
 ### property_scrapes_staging
 
@@ -639,30 +608,6 @@ This document contains the complete database schema for the PropScraper system, 
 | `gps_coordinates` | `character varying` | ✅ | `-` | 📏 MAX(255) |
 | `message_url` | `text` | ✅ | `-` | - |
 
-### scrape_queue
-
-**Purpose:** Application data storage
-
-| Column | Type | Nullable | Default | Constraints |
-|--------|------|----------|---------|-------------|
-| `id` | `uuid` | ❌ | `gen_random_uuid()` | 🔑 PRIMARY KEY |
-| `property_id` | `character varying` | ❌ | `-` | 📏 MAX(255) |
-| `source_url` | `text` | ❌ | `-` | - |
-| `priority` | `integer` | ❌ | `3` | - |
-| `queue_reason` | `character varying` | ❌ | `-` | 📏 MAX(100) |
-| `queued_at` | `timestamp with time zone` | ✅ | `now()` | - |
-| `claimed_at` | `timestamp with time zone` | ✅ | `-` | - |
-| `claimed_by` | `character varying` | ✅ | `-` | 📏 MAX(100) |
-| `completed_at` | `timestamp with time zone` | ✅ | `-` | - |
-| `status` | `character varying` | ✅ | `'pending'::character varying` | 📏 MAX(50) |
-| `attempt_count` | `integer` | ✅ | `0` | - |
-| `max_attempts` | `integer` | ✅ | `3` | - |
-| `last_error` | `text` | ✅ | `-` | - |
-| `session_id` | `uuid` | ✅ | `-` | 🔗 FK → scraping_sessions(id) |
-| `metadata` | `jsonb` | ✅ | `'{}'::jsonb` | - |
-| `created_at` | `timestamp with time zone` | ✅ | `now()` | - |
-| `updated_at` | `timestamp with time zone` | ✅ | `now()` | - |
-
 ### scraping_errors
 
 **Purpose:** Log errors during scraping operations
@@ -735,33 +680,6 @@ This document contains the complete database schema for the PropScraper system, 
 | `error_summary` | `text` | ✅ | `-` | - |
 | `created_at` | `timestamp with time zone` | ✅ | `now()` | - |
 | `completed_at` | `timestamp with time zone` | ✅ | `-` | - |
-
-### sync_runs
-
-**Purpose:** Application data storage
-
-| Column | Type | Nullable | Default | Constraints |
-|--------|------|----------|---------|-------------|
-| `id` | `uuid` | ❌ | `gen_random_uuid()` | 🔑 PRIMARY KEY |
-| `tier_level` | `integer` | ❌ | `-` | - |
-| `tier_name` | `character varying` | ❌ | `-` | 📏 MAX(50) |
-| `started_at` | `timestamp with time zone` | ✅ | `now()` | - |
-| `completed_at` | `timestamp with time zone` | ✅ | `-` | - |
-| `status` | `character varying` | ✅ | `'running'::character varying` | 📏 MAX(50) |
-| `pages_scanned` | `integer` | ✅ | `0` | - |
-| `properties_in_manifest` | `integer` | ✅ | `0` | - |
-| `new_properties_found` | `integer` | ✅ | `0` | - |
-| `price_changes_detected` | `integer` | ✅ | `0` | - |
-| `removals_detected` | `integer` | ✅ | `0` | - |
-| `removals_confirmed` | `integer` | ✅ | `0` | - |
-| `properties_queued` | `integer` | ✅ | `0` | - |
-| `properties_scraped` | `integer` | ✅ | `0` | - |
-| `properties_updated` | `integer` | ✅ | `0` | - |
-| `error_count` | `integer` | ✅ | `0` | - |
-| `error_summary` | `text` | ✅ | `-` | - |
-| `execution_time_ms` | `integer` | ✅ | `-` | - |
-| `metadata` | `jsonb` | ✅ | `'{}'::jsonb` | - |
-| `created_at` | `timestamp with time zone` | ✅ | `now()` | - |
 
 ### todo_items
 
@@ -1066,11 +984,6 @@ This document contains the complete database schema for the PropScraper system, 
 | `properties` | `idx_properties_property_type` | `CREATE INDEX idx_properties_property_type ON public.properties USING btree (property_type)` |
 | `properties` | `idx_properties_state` | `CREATE INDEX idx_properties_state ON public.properties USING btree (state)` |
 | `properties` | `properties_pkey` | `CREATE UNIQUE INDEX properties_pkey ON public.properties USING btree (id)` |
-| `properties_live` | `idx_live_listing_status` | `CREATE INDEX idx_live_listing_status ON public.properties_live USING btree (listing_status)` |
-| `properties_live` | `idx_live_manifest_check` | `CREATE INDEX idx_live_manifest_check ON public.properties_live USING btree (property_id, last_manifest_seen_at)` |
-| `properties_live` | `idx_live_missing_count` | `CREATE INDEX idx_live_missing_count ON public.properties_live USING btree (consecutive_missing_count) WHERE (((listing_status)::text = 'active'::text) AND (consecutive_missing_count > 0))` |
-| `properties_live` | `idx_live_priority` | `CREATE INDEX idx_live_priority ON public.properties_live USING btree (scrape_priority) WHERE ((listing_status)::text = 'active'::text)` |
-| `properties_live` | `idx_live_stale` | `CREATE INDEX idx_live_stale ON public.properties_live USING btree (last_full_scrape_at) WHERE ((listing_status)::text = 'active'::text)` |
 | `properties_live` | `idx_properties_active` | `CREATE INDEX idx_properties_active ON public.properties_live USING btree (last_updated_at) WHERE ((status)::text = 'active'::text)` |
 | `properties_live` | `idx_properties_live_amenities` | `CREATE INDEX idx_properties_live_amenities ON public.properties_live USING gin (amenities)` |
 | `properties_live` | `idx_properties_live_bedrooms` | `CREATE INDEX idx_properties_live_bedrooms ON public.properties_live USING btree (bedrooms)` |
@@ -1090,14 +1003,6 @@ This document contains the complete database schema for the PropScraper system, 
 | `property_changes` | `idx_property_changes_session_id` | `CREATE INDEX idx_property_changes_session_id ON public.property_changes USING btree (session_id)` |
 | `property_changes` | `idx_property_changes_type` | `CREATE INDEX idx_property_changes_type ON public.property_changes USING btree (change_type)` |
 | `property_changes` | `property_changes_pkey` | `CREATE UNIQUE INDEX property_changes_pkey ON public.property_changes USING btree (id)` |
-| `property_manifest` | `idx_manifest_is_new` | `CREATE INDEX idx_manifest_is_new ON public.property_manifest USING btree (is_new) WHERE (is_new = true)` |
-| `property_manifest` | `idx_manifest_last_seen` | `CREATE INDEX idx_manifest_last_seen ON public.property_manifest USING btree (last_seen_at)` |
-| `property_manifest` | `idx_manifest_needs_scrape` | `CREATE INDEX idx_manifest_needs_scrape ON public.property_manifest USING btree (needs_full_scrape) WHERE (needs_full_scrape = true)` |
-| `property_manifest` | `idx_manifest_price_changed` | `CREATE INDEX idx_manifest_price_changed ON public.property_manifest USING btree (price_changed) WHERE (price_changed = true)` |
-| `property_manifest` | `idx_manifest_property_id` | `CREATE INDEX idx_manifest_property_id ON public.property_manifest USING btree (property_id)` |
-| `property_manifest` | `idx_manifest_session` | `CREATE INDEX idx_manifest_session ON public.property_manifest USING btree (seen_in_session_id)` |
-| `property_manifest` | `property_manifest_pkey` | `CREATE UNIQUE INDEX property_manifest_pkey ON public.property_manifest USING btree (id)` |
-| `property_manifest` | `property_manifest_property_id_key` | `CREATE UNIQUE INDEX property_manifest_property_id_key ON public.property_manifest USING btree (property_id)` |
 | `property_scrapes_staging` | `idx_staging_change_type` | `CREATE INDEX idx_staging_change_type ON public.property_scrapes_staging USING btree (change_type)` |
 | `property_scrapes_staging` | `idx_staging_property_id` | `CREATE INDEX idx_staging_property_id ON public.property_scrapes_staging USING btree (property_id)` |
 | `property_scrapes_staging` | `idx_staging_scraped_at` | `CREATE INDEX idx_staging_scraped_at ON public.property_scrapes_staging USING btree (scraped_at)` |
@@ -1126,13 +1031,6 @@ This document contains the complete database schema for the PropScraper system, 
 | `pulled_properties` | `idx_pulled_properties_status` | `CREATE INDEX idx_pulled_properties_status ON public.pulled_properties USING btree (status)` |
 | `pulled_properties` | `pulled_properties_pkey` | `CREATE UNIQUE INDEX pulled_properties_pkey ON public.pulled_properties USING btree (id)` |
 | `pulled_properties` | `pulled_properties_property_id_key` | `CREATE UNIQUE INDEX pulled_properties_property_id_key ON public.pulled_properties USING btree (property_id)` |
-| `scrape_queue` | `idx_queue_claimed` | `CREATE INDEX idx_queue_claimed ON public.scrape_queue USING btree (claimed_at) WHERE ((status)::text = 'in_progress'::text)` |
-| `scrape_queue` | `idx_queue_pending` | `CREATE INDEX idx_queue_pending ON public.scrape_queue USING btree (priority, queued_at) WHERE ((status)::text = 'pending'::text)` |
-| `scrape_queue` | `idx_queue_property` | `CREATE INDEX idx_queue_property ON public.scrape_queue USING btree (property_id)` |
-| `scrape_queue` | `idx_queue_session` | `CREATE INDEX idx_queue_session ON public.scrape_queue USING btree (session_id)` |
-| `scrape_queue` | `idx_queue_status` | `CREATE INDEX idx_queue_status ON public.scrape_queue USING btree (status)` |
-| `scrape_queue` | `idx_queue_unique_pending` | `CREATE UNIQUE INDEX idx_queue_unique_pending ON public.scrape_queue USING btree (property_id) WHERE ((status)::text = 'pending'::text)` |
-| `scrape_queue` | `scrape_queue_pkey` | `CREATE UNIQUE INDEX scrape_queue_pkey ON public.scrape_queue USING btree (id)` |
 | `scraping_errors` | `scraping_errors_pkey` | `CREATE UNIQUE INDEX scraping_errors_pkey ON public.scraping_errors USING btree (id)` |
 | `scraping_sessions` | `scraping_sessions_pkey` | `CREATE UNIQUE INDEX scraping_sessions_pkey ON public.scraping_sessions USING btree (id)` |
 | `showing_request_state_transitions` | `idx_state_transitions_showing_request` | `CREATE INDEX idx_state_transitions_showing_request ON public.showing_request_state_transitions USING btree (showing_request_id, created_at DESC)` |
@@ -1142,11 +1040,6 @@ This document contains the complete database schema for the PropScraper system, 
 | `sync_metadata` | `idx_sync_metadata_session_id` | `CREATE INDEX idx_sync_metadata_session_id ON public.sync_metadata USING btree (session_id)` |
 | `sync_metadata` | `idx_sync_metadata_status` | `CREATE INDEX idx_sync_metadata_status ON public.sync_metadata USING btree (sync_status)` |
 | `sync_metadata` | `sync_metadata_pkey` | `CREATE UNIQUE INDEX sync_metadata_pkey ON public.sync_metadata USING btree (id)` |
-| `sync_runs` | `idx_sync_runs_started` | `CREATE INDEX idx_sync_runs_started ON public.sync_runs USING btree (started_at DESC)` |
-| `sync_runs` | `idx_sync_runs_status` | `CREATE INDEX idx_sync_runs_status ON public.sync_runs USING btree (status)` |
-| `sync_runs` | `idx_sync_runs_tier` | `CREATE INDEX idx_sync_runs_tier ON public.sync_runs USING btree (tier_level, started_at DESC)` |
-| `sync_runs` | `idx_sync_runs_tier_status` | `CREATE INDEX idx_sync_runs_tier_status ON public.sync_runs USING btree (tier_level, status, started_at DESC)` |
-| `sync_runs` | `sync_runs_pkey` | `CREATE UNIQUE INDEX sync_runs_pkey ON public.sync_runs USING btree (id)` |
 | `todo_items` | `idx_todo_items_list_id` | `CREATE INDEX idx_todo_items_list_id ON public.todo_items USING btree (list_id)` |
 | `todo_items` | `idx_todo_items_order` | `CREATE INDEX idx_todo_items_order ON public.todo_items USING btree (list_id, order_index)` |
 | `todo_items` | `todo_items_pkey` | `CREATE UNIQUE INDEX todo_items_pkey ON public.todo_items USING btree (id)` |
@@ -1207,50 +1100,6 @@ END;
 
 ```
 
-### claim_queue_items
-
-**Type:** FUNCTION  
-**Returns:** `record`
-
-```sql
-
-DECLARE
-    claimed_ids UUID[];
-BEGIN
-    -- Select and lock items atomically
-    WITH claimed AS (
-        SELECT sq.id
-        FROM scrape_queue sq
-        WHERE sq.status = 'pending'
-        ORDER BY sq.priority, sq.queued_at
-        LIMIT p_batch_size
-        FOR UPDATE SKIP LOCKED
-    )
-    UPDATE scrape_queue sq
-    SET 
-        status = 'in_progress',
-        claimed_at = NOW(),
-        claimed_by = p_worker_id,
-        attempt_count = sq.attempt_count + 1,
-        updated_at = NOW()
-    FROM claimed
-    WHERE sq.id = claimed.id
-    RETURNING sq.id INTO claimed_ids;
-    
-    -- Return the claimed items
-    RETURN QUERY
-    SELECT 
-        sq.id,
-        sq.property_id,
-        sq.source_url,
-        sq.priority,
-        sq.queue_reason
-    FROM scrape_queue sq
-    WHERE sq.id = ANY(claimed_ids);
-END;
-
-```
-
 ### cleanup_expired_agency_sessions
 
 **Type:** FUNCTION  
@@ -1260,26 +1109,6 @@ END;
 
 BEGIN
   DELETE FROM agency_sessions WHERE expires_at < now();
-END;
-
-```
-
-### cleanup_old_queue_entries
-
-**Type:** FUNCTION  
-**Returns:** `integer`
-
-```sql
-
-DECLARE
-    deleted_count INTEGER;
-BEGIN
-    DELETE FROM scrape_queue
-    WHERE status IN ('completed', 'cancelled')
-    AND completed_at < NOW() - (p_days || ' days')::INTERVAL;
-    
-    GET DIAGNOSTICS deleted_count = ROW_COUNT;
-    RETURN deleted_count;
 END;
 
 ```
@@ -1429,142 +1258,6 @@ END;
 
 ```
 
-### get_data_staleness_days
-
-**Type:** FUNCTION  
-**Returns:** `integer`
-
-```sql
-
-BEGIN
-    IF p_last_full_scrape_at IS NULL THEN
-        RETURN NULL;
-    END IF;
-    RETURN EXTRACT(DAY FROM (NOW() - p_last_full_scrape_at))::INTEGER;
-END;
-
-```
-
-### get_last_tier_run
-
-**Type:** FUNCTION  
-**Returns:** `record`
-
-```sql
-
-BEGIN
-    RETURN QUERY
-    SELECT 
-        sr.id,
-        sr.started_at,
-        sr.completed_at,
-        sr.status,
-        sr.execution_time_ms
-    FROM sync_runs sr
-    WHERE sr.tier_level = p_tier_level
-    AND sr.status = 'completed'
-    ORDER BY sr.started_at DESC
-    LIMIT 1;
-END;
-
-```
-
-### get_manifest_stats
-
-**Type:** FUNCTION  
-**Returns:** `record`
-
-```sql
-
-BEGIN
-    RETURN QUERY
-    SELECT 
-        COUNT(*) as total_properties,
-        COUNT(*) FILTER (WHERE is_new = TRUE) as new_properties,
-        COUNT(*) FILTER (WHERE needs_full_scrape = TRUE) as needs_scrape,
-        COUNT(*) FILTER (WHERE price_changed = TRUE) as price_changed,
-        ROUND(AVG(EXTRACT(DAY FROM (NOW() - last_seen_at))), 2) as avg_days_since_seen,
-        MAX(EXTRACT(DAY FROM (NOW() - last_seen_at)))::INTEGER as oldest_seen_days
-    FROM property_manifest;
-END;
-
-```
-
-### get_queue_stats
-
-**Type:** FUNCTION  
-**Returns:** `record`
-
-```sql
-
-BEGIN
-    RETURN QUERY
-    WITH stats AS (
-        SELECT 
-            COUNT(*) FILTER (WHERE status = 'pending') as pending_count,
-            COUNT(*) FILTER (WHERE status = 'in_progress') as in_progress_count,
-            COUNT(*) FILTER (WHERE status = 'completed' AND completed_at >= CURRENT_DATE) as completed_today_count,
-            COUNT(*) FILTER (WHERE status = 'failed' AND completed_at >= CURRENT_DATE) as failed_today_count
-        FROM scrape_queue
-    ),
-    priority_stats AS (
-        SELECT jsonb_object_agg(priority::text, cnt) as priority_json
-        FROM (
-            SELECT priority, COUNT(*) as cnt 
-            FROM scrape_queue 
-            WHERE status = 'pending'
-            GROUP BY priority
-        ) p
-    ),
-    reason_stats AS (
-        SELECT jsonb_object_agg(queue_reason, cnt) as reason_json
-        FROM (
-            SELECT queue_reason, COUNT(*) as cnt 
-            FROM scrape_queue 
-            WHERE status = 'pending'
-            GROUP BY queue_reason
-        ) r
-    )
-    SELECT 
-        s.pending_count,
-        s.in_progress_count,
-        s.completed_today_count,
-        s.failed_today_count,
-        COALESCE(p.priority_json, '{}'),
-        COALESCE(r.reason_json, '{}')
-    FROM stats s
-    CROSS JOIN priority_stats p
-    CROSS JOIN reason_stats r;
-END;
-
-```
-
-### get_stale_properties
-
-**Type:** FUNCTION  
-**Returns:** `record`
-
-```sql
-
-BEGIN
-    RETURN QUERY
-    SELECT 
-        pl.property_id,
-        pl.source_url,
-        pl.last_full_scrape_at,
-        EXTRACT(DAY FROM (NOW() - pl.last_full_scrape_at))::INTEGER as staleness_days
-    FROM properties_live pl
-    WHERE pl.listing_status = 'active'
-    AND (
-        pl.last_full_scrape_at IS NULL 
-        OR pl.last_full_scrape_at < NOW() - (p_stale_days || ' days')::INTERVAL
-    )
-    ORDER BY pl.last_full_scrape_at NULLS FIRST
-    LIMIT p_limit;
-END;
-
-```
-
 ### get_user_showing_request_summary
 
 **Type:** FUNCTION  
@@ -1708,33 +1401,6 @@ END;
 
 ```
 
-### increment_missing_count
-
-**Type:** FUNCTION  
-**Returns:** `integer`
-
-```sql
-
-DECLARE
-    updated_count INTEGER;
-BEGIN
-    UPDATE properties_live pl
-    SET 
-        consecutive_missing_count = consecutive_missing_count + 1,
-        updated_at = NOW()
-    WHERE pl.listing_status = 'active'
-    AND pl.property_id NOT IN (
-        SELECT pm.property_id 
-        FROM property_manifest pm 
-        WHERE pm.seen_in_session_id = p_session_id
-    );
-    
-    GET DIAGNOSTICS updated_count = ROW_COUNT;
-    RETURN updated_count;
-END;
-
-```
-
 ### migrate_pulled_properties_to_live
 
 **Type:** FUNCTION  
@@ -1812,32 +1478,6 @@ END;
 
 BEGIN
     REFRESH MATERIALIZED VIEW CONCURRENTLY property_stats;
-END;
-
-```
-
-### reset_missing_count
-
-**Type:** FUNCTION  
-**Returns:** `integer`
-
-```sql
-
-DECLARE
-    updated_count INTEGER;
-BEGIN
-    UPDATE properties_live pl
-    SET 
-        consecutive_missing_count = 0,
-        last_manifest_seen_at = NOW(),
-        updated_at = NOW()
-    FROM property_manifest pm
-    WHERE pl.property_id = pm.property_id
-    AND pm.seen_in_session_id = p_session_id
-    AND pl.consecutive_missing_count > 0;
-    
-    GET DIAGNOSTICS updated_count = ROW_COUNT;
-    RETURN updated_count;
 END;
 
 ```
@@ -1988,20 +1628,6 @@ END;
 ```
 
 ### update_journey_updated_at
-
-**Type:** FUNCTION  
-**Returns:** `trigger`
-
-```sql
-
-BEGIN
-    NEW.updated_at = NOW();
-    RETURN NEW;
-END;
-
-```
-
-### update_manifest_updated_at
 
 **Type:** FUNCTION  
 **Returns:** `trigger`

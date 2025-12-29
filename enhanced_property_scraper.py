@@ -1494,6 +1494,56 @@ class EnhancedPincaliScraper:
                 logger.error(f"[{source_name}] Error on page {page_num}: {e}")
                 continue
     
+    async def scrape_single_property(self, source_url: str) -> Dict:
+        """
+        Scrape a single property by its detail page URL.
+        
+        This method is used by the ScrapeQueueService for targeted scraping
+        of individual properties (e.g., new listings or price change verification).
+        
+        Args:
+            source_url: Full URL to the property detail page
+            
+        Returns:
+            Dictionary containing the scraped property data, or empty dict on failure
+        """
+        logger.info(f"Scraping single property: {source_url}")
+        
+        try:
+            # Scrape the property details using Playwright
+            detailed_data = await self.scrape_property_details(source_url)
+            
+            if not detailed_data:
+                logger.warning(f"No data extracted from {source_url}")
+                return {}
+            
+            # Generate property_id from URL if not present
+            if not detailed_data.get("property_id"):
+                detailed_data["property_id"] = self.generate_property_id(source_url)
+            
+            # Add metadata
+            detailed_data["source_url"] = source_url
+            detailed_data["scraped_at"] = datetime.utcnow().isoformat()
+            
+            # Try to determine operation type from URL if not set
+            if not detailed_data.get("operation_type"):
+                url_lower = source_url.lower()
+                if "rent" in url_lower or "renta" in url_lower:
+                    detailed_data["operation_type"] = "rent"
+                elif "foreclosure" in url_lower or "remate" in url_lower:
+                    detailed_data["operation_type"] = "foreclosure"
+                elif "construction" in url_lower or "construccion" in url_lower:
+                    detailed_data["operation_type"] = "new_construction"
+                else:
+                    detailed_data["operation_type"] = "sale"
+            
+            logger.info(f"Successfully scraped property: {detailed_data.get('title', 'Unknown')[:50]}")
+            return detailed_data
+            
+        except Exception as e:
+            logger.error(f"Error scraping single property {source_url}: {e}")
+            return {}
+    
     async def scrape_all_pages(self, max_pages: Optional[int] = None, start_page: int = 1, auto_sync: bool = True,
                                source_url: Optional[str] = None, operation_type: Optional[str] = None):
         """Scrape property listing pages from a single source and optionally run sync workflow
