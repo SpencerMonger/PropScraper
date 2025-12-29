@@ -117,7 +117,7 @@ class EnhancedPincaliScraper:
         try:
             with open(cookies_file, 'r') as f:
                 cookies = json.load(f)
-            logger.info(f"✅ Loaded {len(cookies)} cookies from {cookies_file}")
+            logger.info(f"Loaded {len(cookies)} cookies from {cookies_file}")
             return cookies
         except Exception as e:
             logger.error(f"Failed to load cookies from {cookies_file}: {e}")
@@ -731,9 +731,16 @@ class EnhancedPincaliScraper:
             return True
             
         except Exception as e:
-            logger.error(f"Failed to save property to staging {property_data.get('title', 'Unknown')}: {e}")
-            await self.log_error(property_data.get("source_url", ""), "database_error", str(e))
-            return False
+            error_str = str(e)
+            # Check if it's a duplicate key error
+            if "duplicate key value violates unique constraint" in error_str or "23505" in error_str:
+                logger.debug(f"Skipping duplicate property: {property_data.get('property_id', 'Unknown')}")
+                return False  # Skip duplicates silently
+            else:
+                # Log other errors
+                logger.error(f"Failed to save property to staging {property_data.get('title', 'Unknown')}: {e}")
+                await self.log_error(property_data.get("source_url", ""), "database_error", str(e))
+                return False
     
     async def scrape_property_list_page(self, url: str, page_num: int = 1) -> List[Dict]:
         """Scrape a single property listing page using HTTP fallback directly - same as working scraper"""
@@ -844,7 +851,7 @@ class EnhancedPincaliScraper:
                     details["agent_phone"] = list(phone_numbers)[0]  # Use first phone for agent_phone field
                     if len(phone_numbers) > 1:
                         details["agent_phone_all"] = ','.join(sorted(phone_numbers))  # Store all phones
-                        logger.info(f"✅ Extracted {len(phone_numbers)} phone number(s) for {detail_url}")
+                        logger.info(f"Extracted {len(phone_numbers)} phone number(s) for {detail_url}")
                 else:
                     logger.debug(f"No phone numbers found for {detail_url}")
                 
@@ -874,10 +881,6 @@ class EnhancedPincaliScraper:
             if title_elem:
                 title = self.clean_text(title_elem.get_text())
                 details["title"] = title
-                
-                # Check for pre-sale indicator
-                if "PREVENTA" in title.upper():
-                    details["is_presale"] = True
             
             # Extract full description using correct selector
             desc_elem = soup.select_one('.text-description')
@@ -1184,51 +1187,72 @@ class EnhancedPincaliScraper:
             return []
     
     async def get_total_pages(self, base_url: str) -> int:
-        """Determine total number of pages to scrape - same as working scraper"""
+        """Determine total number of pages to scrape using HTTP request"""
         try:
-            crawler_config = CrawlerRunConfig(
-                cache_mode=CacheMode.BYPASS,
-                wait_for="body",
-                page_timeout=30000,
-                delay_before_return_html=5000
-            )
+            logger.info("Auto-detecting total pages...")
             
-            async with AsyncWebCrawler(config=self.browser_config) as crawler:
-                result = await crawler.arun(base_url, config=crawler_config)
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5',
+                'Referer': 'https://www.pincali.com',
+                'Accept-Encoding': 'gzip, deflate',
+                'Connection': 'keep-alive',
+            }
+            
+            response = requests.get(base_url, headers=headers, timeout=30)
+            
+            if response.status_code != 200:
+                logger.warning(f"Could not determine total pages (HTTP {response.status_code}), defaulting to 100")
+                return 100
+            
+            # Parse HTML to find pagination summary
+            soup = BeautifulSoup(response.text, 'html.parser')
+            
+            # Look for Pincali's pagination-summary div (contains "Page 1 of X,XXX")
+            pagination_summary = soup.select_one('.pagination-summary')
+            if pagination_summary:
+                summary_text = pagination_summary.get_text(strip=True)
+                logger.debug(f"Found pagination summary: {summary_text}")
                 
-                if not result.success:
-                    logger.warning(f"Could not determine total pages, defaulting to 100")
-                    return 100
-                
-                # Parse HTML to find pagination
-                soup = BeautifulSoup(result.html, 'html.parser')
-                
-                # Look for pagination elements - adapted for Pincali
-                pagination_selectors = [
-                    '.pagination a',
-                    '.pager a',
-                    '.page-numbers a',
-                    '[class*="pagination"] a',
-                    '[class*="page"] a',
-                    'nav a'
-                ]
-                
-                max_page = 1
-                for selector in pagination_selectors:
-                    links = soup.select(selector)
-                    for link in links:
-                        text = link.get_text().strip()
-                        if text.isdigit():
-                            max_page = max(max_page, int(text))
-                        
-                        # Also check href for page numbers
-                        href = link.get('href', '')
-                        page_match = re.search(r'page=(\d+)', href)
-                        if page_match:
-                            max_page = max(max_page, int(page_match.group(1)))
-                
-                logger.info(f"Detected {max_page} total pages")
-                return min(max_page, 500)  # Cap at 500 pages for safety
+                # Extract number from "Page 1 of 8,676" format
+                match = re.search(r'Page\s+\d+\s+of\s+([\d,]+)', summary_text, re.IGNORECASE)
+                if match:
+                    total_pages_str = match.group(1).replace(',', '')
+                    total_pages = int(total_pages_str)
+                    logger.info(f"Detected {total_pages:,} total pages from pagination summary")
+                    return total_pages
+            
+            # Fallback: try to find pagination links
+            logger.warning("Could not find pagination-summary, trying fallback method...")
+            pagination_selectors = [
+                '.pagination a',
+                '.pager a',
+                '.page-numbers a',
+                'nav.pagination a'
+            ]
+            
+            max_page = 1
+            for selector in pagination_selectors:
+                links = soup.select(selector)
+                for link in links:
+                    text = link.get_text().strip()
+                    if text.isdigit():
+                        max_page = max(max_page, int(text))
+                    
+                    # Also check href for page numbers
+                    href = link.get('href', '')
+                    page_match = re.search(r'page=(\d+)', href)
+                    if page_match:
+                        max_page = max(max_page, int(page_match.group(1)))
+            
+            if max_page > 1:
+                logger.info(f"Detected {max_page} total pages from fallback method")
+                return max_page
+            
+            # If all else fails
+            logger.warning("Could not determine total pages, defaulting to 100")
+            return 100
         
         except Exception as e:
             logger.error(f"Error determining total pages: {e}")
@@ -1250,6 +1274,8 @@ class EnhancedPincaliScraper:
             
             for page_num in range(start_page, max_pages + 1):
                 try:
+                    page_start_time = time.time()
+                    
                     # Construct page URL for Pincali
                     if page_num == 1:
                         page_url = self.target_url
@@ -1263,8 +1289,10 @@ class EnhancedPincaliScraper:
                     # Scrape the page
                     properties = await self.scrape_property_list_page(page_url, page_num)
                     
+                    logger.info(f"Found {len(properties)} properties on page {page_num}. Scraping details...")
+                    
                     # Process and save each property
-                    for prop_data in properties:
+                    for idx, prop_data in enumerate(properties, 1):
                         if not prop_data.get("title") and not prop_data.get("link"):
                             continue
                         
@@ -1276,6 +1304,7 @@ class EnhancedPincaliScraper:
                             # Then scrape detailed information from property detail page
                             if prop_data.get("link"):
                                 detail_url = urljoin(self.base_url, prop_data["link"])
+                                logger.info(f"[{idx}/{len(properties)}] Scraping details: {cleaned_property.get('title', 'Unknown')[:60]}...")
                                 detailed_data = await self.scrape_property_details(detail_url)
                                 
                                 # Merge detailed data with basic data
@@ -1290,7 +1319,7 @@ class EnhancedPincaliScraper:
                             self.properties_scraped += 1
                             
                         except Exception as e:
-                            logger.error(f"Error processing property: {e}")
+                            logger.error(f"Error processing property {idx}/{len(properties)}: {e}")
                             continue
                     
                     # Update progress
@@ -1299,8 +1328,9 @@ class EnhancedPincaliScraper:
                     # Rate limiting - be respectful to Pincali
                     await asyncio.sleep(3)  # 3 second delay between pages
                     
-                    logger.info(f"Completed page {page_num}/{max_pages}. "
-                              f"Properties: {self.properties_scraped}, "
+                    page_elapsed = time.time() - page_start_time
+                    logger.info(f"Completed page {page_num}/{max_pages} in {page_elapsed:.1f}s. "
+                              f"Total properties: {self.properties_scraped}, "
                               f"Inserted to staging: {self.properties_inserted}")
                 
                 except Exception as e:
@@ -1324,18 +1354,18 @@ class EnhancedPincaliScraper:
                 workflow_result = await self.orchestrator.daily_sync_workflow(self.session_id)
                 
                 if workflow_result.success:
-                    logger.info("✅ Sync workflow completed successfully!")
+                    logger.info("Sync workflow completed successfully!")
                     if workflow_result.sync_result:
                         metrics = workflow_result.sync_result.metrics
-                        logger.info(f"✅ New properties: {metrics.new_properties}")
-                        logger.info(f"✅ Updated properties: {metrics.updated_properties}")
-                        logger.info(f"✅ Removed properties: {metrics.removed_properties}")
-                        logger.info(f"✅ Data quality score: {metrics.data_quality_score:.2f}")
+                        logger.info(f"New properties: {metrics.new_properties}")
+                        logger.info(f"Updated properties: {metrics.updated_properties}")
+                        logger.info(f"Removed properties: {metrics.removed_properties}")
+                        logger.info(f"Data quality score: {metrics.data_quality_score:.2f}")
                 else:
-                    logger.error(f"❌ Sync workflow failed: {workflow_result.error_message}")
+                    logger.error(f"Sync workflow failed: {workflow_result.error_message}")
             else:
-                logger.info("ℹ️  Auto-sync disabled. Data is in staging table.")
-                logger.info(f"ℹ️  To sync manually, run: python -c \"from services import PropertySyncOrchestrator; import asyncio; asyncio.run(PropertySyncOrchestrator(supabase).daily_sync_workflow('{self.session_id}'))\"")
+                logger.info("Auto-sync disabled. Data is in staging table.")
+                logger.info(f"To sync manually, run: python -c \"from services import PropertySyncOrchestrator; import asyncio; asyncio.run(PropertySyncOrchestrator(supabase).daily_sync_workflow('{self.session_id}'))\"")
         
         except Exception as e:
             logger.error(f"Fatal error during scraping: {e}")
@@ -1360,6 +1390,8 @@ Examples:
   python enhanced_property_scraper.py --pages 5          # Scrape 5 pages
   python enhanced_property_scraper.py --pages 10 --start 3  # Scrape pages 3-12
   python enhanced_property_scraper.py                    # Scrape default 10 pages
+  python enhanced_property_scraper.py --all              # Scrape ALL pages (auto-detect total)
+  python enhanced_property_scraper.py --all --start 5    # Scrape all pages starting from page 5
   python enhanced_property_scraper.py --no-sync --pages 3   # Scrape without auto-sync
         """
     )
@@ -1369,6 +1401,12 @@ Examples:
         type=int, 
         default=10,
         help='Number of pages to scrape (default: 10)'
+    )
+    
+    parser.add_argument(
+        '--all',
+        action='store_true',
+        help='Scrape all available pages (auto-detects total pages, overrides --pages)'
     )
     
     parser.add_argument(
@@ -1398,7 +1436,7 @@ Examples:
         logger.info("Verbose logging enabled")
     
     # Validate arguments
-    if args.pages < 1:
+    if not args.all and args.pages < 1:
         logger.error("Number of pages must be at least 1")
         return
     
@@ -1409,16 +1447,24 @@ Examples:
     # Initialize scraper
     scraper = EnhancedPincaliScraper()
     
-    # Log scraping parameters
-    logger.info(f"Starting Enhanced Pincali scraper with staging architecture")
-    logger.info(f"Pages to scrape: {args.pages}")
-    logger.info(f"Starting from page: {args.start}")
-    logger.info(f"Total pages: {args.start} to {args.start + args.pages - 1}")
+    # Determine max_pages based on --all flag
+    if args.all:
+        max_pages_to_scrape = None  # Triggers auto-detection
+        logger.info(f"Starting Enhanced Pincali scraper with staging architecture")
+        logger.info(f"Mode: Scrape ALL pages (auto-detect)")
+        logger.info(f"Starting from page: {args.start}")
+    else:
+        max_pages_to_scrape = args.pages
+        logger.info(f"Starting Enhanced Pincali scraper with staging architecture")
+        logger.info(f"Pages to scrape: {args.pages}")
+        logger.info(f"Starting from page: {args.start}")
+        logger.info(f"Total pages: {args.start} to {args.start + args.pages - 1}")
+    
     logger.info(f"Auto-sync: {'No' if args.no_sync else 'Yes'}")
     
     try:
         await scraper.scrape_all_pages(
-            max_pages=args.pages, 
+            max_pages=max_pages_to_scrape, 
             start_page=args.start, 
             auto_sync=not args.no_sync
         )

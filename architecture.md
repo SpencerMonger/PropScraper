@@ -51,8 +51,11 @@ PropScraper is a Python-based web scraping system designed to extract property l
 The enhanced scraping engine implements a dual-table architecture with staging and live tables:
 
 #### Key Components:
+- **Cookie-Based Authentication**: Loads saved login cookies for authenticated requests
 - **Session Management**: Tracks scraping progress and handles interruptions
 - **Data Extraction**: Parses property listings using proven CSS selectors from working scraper
+- **Playwright Integration**: Uses Playwright with cookies to extract hidden phone numbers
+- **Interactive Scraping**: Clicks "Send message" button to reveal contact information
 - **Staging Table Storage**: Saves raw scraped data to `property_scrapes_staging` table
 - **Services Integration**: Uses services architecture for data validation and sync
 - **Error Handling**: Comprehensive logging and error recovery
@@ -70,6 +73,12 @@ class EnhancedPincaliScraper:
     def __init__():
         # Initialize browser config, database client, services orchestrator
         self.orchestrator = PropertySyncOrchestrator(supabase)
+        # Load saved login cookies for authenticated requests
+        self.cookies = self.load_cookies()
+    
+    def load_cookies():
+        # Load cookies from pincali_cookies.json
+        # Returns empty list if file doesn't exist (graceful degradation)
     
     async def scrape_all_pages(auto_sync=True):
         # Main orchestration method
@@ -80,22 +89,42 @@ class EnhancedPincaliScraper:
             properties = await self.scrape_property_list_page(page)
             for prop in properties:
                 cleaned_data = self.extract_property_details(prop)
+                
+                # Scrape detail page with Playwright + cookies
+                detail_url = prop.get("link")
+                detailed_data = await self.scrape_property_details(detail_url)
+                # This method now:
+                # 1. Launches Playwright browser with cookies
+                # 2. Navigates to property page
+                # 3. Clicks "Send message" button
+                # 4. Extracts phone numbers from revealed content
+                # 5. Extracts all other property details
+                
+                cleaned_data.update(detailed_data)
                 await self.save_property_to_staging(cleaned_data)
         
         # Auto-sync phase (if enabled)
         if auto_sync:
             workflow_result = await self.orchestrator.daily_sync_workflow(session_id)
     
+    async def scrape_property_details(detail_url):
+        # Uses Playwright with cookies to scrape detail page
+        # Clicks "Send message" button to reveal phone numbers
+        # Extracts phone numbers from .publisher-phones divs
+        # Returns dict with all property details including phone numbers
+    
     async def save_property_to_staging():
         # Save raw data to staging table for later processing
 ```
 
 #### Technology Stack:
+- **Playwright**: Browser automation for authenticated scraping and JavaScript interaction
 - **Crawl4AI**: Modern async web crawling with Playwright backend
 - **Supabase**: PostgreSQL database with real-time capabilities
 - **BeautifulSoup**: HTML parsing and data extraction
 - **AsyncIO**: Asynchronous execution for better performance
 - **Services Architecture**: Modular data management services
+- **Cookie Authentication**: Session-based authentication using saved browser cookies
 
 ### 2. Services Architecture (`services/` directory)
 
@@ -280,11 +309,23 @@ The system uses a PostgreSQL database through Supabase with a dual-table archite
 ### 1. Enhanced Scraping Pipeline (Dual-Table Architecture)
 
 ```
+Initialize:
+    └── Load Cookies from pincali_cookies.json (for authenticated requests)
+
 Start Session → Get Total Pages → For Each Page:
     ├── Fetch Page (with captcha handling)
     ├── Extract Properties (CSS selectors)
-    ├── Clean Data (normalize, validate)
-    ├── Save to Staging Table (property_scrapes_staging)
+    ├── For Each Property:
+    │   ├── Extract Basic Data (listing page)
+    │   ├── Visit Detail Page with Playwright + Cookies
+    │   │   ├── Navigate to property URL
+    │   │   ├── Wait for page load (2 seconds)
+    │   │   ├── Click "Send message" button
+    │   │   ├── Wait for phone numbers to appear (2 seconds)
+    │   │   ├── Extract phone numbers from .publisher-phones divs
+    │   │   └── Extract all other property details
+    │   ├── Clean Data (normalize, validate)
+    │   └── Save to Staging Table (property_scrapes_staging)
     ├── Update Progress
     └── Rate Limit Delay
 
@@ -341,6 +382,13 @@ Page Load → Captcha Detected? →
 - **MAX_PAGES**: Scraping scope configuration
 - **DELAY_BETWEEN_PAGES**: Rate limiting configuration
 
+### Authentication Configuration:
+- **Cookie File**: `pincali_cookies.json` - Stores browser cookies for authenticated sessions
+  - **Setup**: Run `python get_cookies.py` to manually log in and save cookies
+  - **Location**: Root directory of the project
+  - **Expiration**: Cookies typically last weeks to months before requiring refresh
+  - **Graceful Fallback**: Scraper works without cookies but won't extract phone numbers
+
 ### Browser Configuration:
 ```python
 BrowserConfig(
@@ -349,10 +397,59 @@ BrowserConfig(
     user_agent="Mozilla/5.0...",
     browser_type="chromium"
 )
+
+# Playwright Configuration (for detail page scraping)
+async with async_playwright() as p:
+    browser = await p.chromium.launch(headless=True)
+    context = await browser.new_context(
+        user_agent='Mozilla/5.0...',
+        viewport={'width': 1920, 'height': 1080}
+    )
+    # Inject cookies from pincali_cookies.json
+    await context.add_cookies(cookies)
 ```
 
 ### Extraction Schema:
 CSS selector-based configuration for property data extraction with fallback selectors for different page layouts.
+
+### Phone Number Extraction (v2.1):
+The scraper uses an authenticated, interactive approach to extract hidden phone numbers:
+
+```python
+# 1. Load cookies on initialization
+self.cookies = self.load_cookies()
+
+# 2. For each property detail page:
+async with async_playwright() as p:
+    # Launch browser with cookies
+    context = await browser.new_context()
+    await context.add_cookies(self.cookies)
+    
+    # Navigate to property page
+    page = await context.new_page()
+    await page.goto(detail_url, wait_until='networkidle')
+    
+    # Click "Send message" button to reveal phones
+    send_button = await page.query_selector('input[type="submit"][value="Send message"]')
+    await send_button.click()
+    await page.wait_for_timeout(2000)
+    
+    # Extract phone numbers from revealed content
+    phones_divs = await page.query_selector_all('.publisher-phones')
+    for div in phones_divs:
+        phone_links = await div.query_selector_all('a[href^="tel:"]')
+        for link in phone_links:
+            phone = (await link.get_attribute('href')).replace('tel:', '')
+            phone_numbers.add(phone)
+```
+
+**Key Features:**
+- ✅ Requires manual login once via `get_cookies.py`
+- ✅ Cookies are automatically loaded on each scraper run
+- ✅ Interactive button clicking reveals hidden phone numbers
+- ✅ Extracts multiple phone numbers per property
+- ✅ Graceful degradation if cookies expire or are missing
+- ✅ Stores first phone in `agent_phone`, all phones in `agent_phone_all`
 
 ## Enhanced Data Parsing Architecture (v1.3)
 
@@ -516,11 +613,12 @@ logging.basicConfig(
 ### Dependencies:
 ```
 Python 3.8+ → Core Runtime
+Playwright → Browser Automation & Authenticated Scraping
 Crawl4AI → Web Crawling Engine
-Playwright → Browser Automation
 Supabase → Database Client
 SolveCaptcha → Anti-Captcha Service
 BeautifulSoup → HTML Parsing
+Requests → HTTP Client (for listing pages)
 ```
 
 ### Infrastructure Requirements:
@@ -534,6 +632,7 @@ BeautifulSoup → HTML Parsing
 - **schema.sql**: Database schema definition
 - **.env**: Environment configuration
 - **env_example.txt**: Configuration template
+- **pincali_cookies.json**: Saved browser cookies for authenticated scraping (generated by `get_cookies.py`)
 
 ## Extension Points
 
@@ -568,6 +667,16 @@ BeautifulSoup → HTML Parsing
 - **Version Control**: Git-based version management
 
 ## Version History & Evolution
+
+### v2.1 (Authenticated Scraping with Phone Number Extraction)
+- **Cookie-Based Authentication**: Load and use saved browser cookies for authenticated requests
+- **Playwright Integration**: Browser automation for interactive scraping of detail pages
+- **Phone Number Extraction**: Click "Send message" button to reveal hidden phone numbers
+- **Cookie Management Tool**: `get_cookies.py` utility for one-time manual login and cookie saving
+- **Multi-Phone Support**: Extract and store multiple phone numbers per property
+- **Graceful Degradation**: Scraper continues to work even if cookies are missing (just without phone numbers)
+- **Enhanced Logging**: Detailed logging for authentication and phone extraction status
+- **Updated Architecture**: Hybrid approach using HTTP for listing pages and Playwright for detail pages
 
 ### v2.0 (Dual-Table Architecture with Services Layer)
 - **Dual-Table Architecture**: Staging table (`property_scrapes_staging`) and live table (`properties_live`)
@@ -604,4 +713,13 @@ BeautifulSoup → HTML Parsing
 - Foundation web scraping architecture
 - Crawl4AI integration with Playwright backend
 
-This architecture provides a robust, scalable, and maintainable foundation for web scraping operations while respecting target site resources and handling common challenges like anti-bot measures. The v1.3 enhancements significantly improve data quality and structure, making the scraped data more useful for analysis and application development. 
+## Summary
+
+This architecture provides a robust, scalable, and maintainable foundation for web scraping operations while respecting target site resources and handling common challenges like anti-bot measures. 
+
+**Key Innovations:**
+- **v2.1**: Authenticated scraping with cookie-based sessions enables extraction of previously inaccessible data like phone numbers through interactive browser automation
+- **v2.0**: Dual-table architecture with staging and live tables provides safe, validated data promotion with comprehensive change tracking
+- **v1.3**: Enhanced parsing with intelligent data extraction significantly improves data quality and structure
+
+The system successfully balances performance, reliability, and data quality while maintaining ethical scraping practices through rate limiting and respectful request patterns. 
