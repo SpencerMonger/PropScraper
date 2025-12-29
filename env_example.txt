@@ -1,9 +1,7 @@
 # Supabase Configuration
-SUPABASE_URL=your_supabase_project_url_here
-SUPABASE_ANON_KEY=your_supabase_anon_key_here
-
-# SolveCaptcha Configuration (for bypassing captchas)
-SOLVECAPTCHA_API_KEY=your_solvecaptcha_api_key_here
+SUPABASE_URL=
+SUPABASE_ANON_KEY=
+SUPABASE_DB_PASSWORD=
 
 # Optional: Scraping Configuration
 MAX_PAGES=50
@@ -11,4 +9,7 @@ START_PAGE=1
 DELAY_BETWEEN_PAGES=2
 
 # Optional: Logging Configuration
-LOG_LEVEL=INFO 
+LOG_LEVEL=INFO
+
+# SolveCaptcha Configuration (for bypassing captchas)
+SOLVECAPTCHA_API_KEY=your_solvecaptcha_api_key_here

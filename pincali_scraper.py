@@ -27,6 +27,8 @@ from supabase import create_client, Client
 from crawl4ai import AsyncWebCrawler, BrowserConfig, CrawlerRunConfig, CacheMode
 from crawl4ai.extraction_strategy import JsonCssExtractionStrategy
 
+from config.property_id import generate_property_id as centralized_generate_property_id
+
 # Load environment variables
 load_dotenv()
 
@@ -304,32 +306,9 @@ class PincaliScraper:
         return cleaned_data
     
     def generate_property_id(self, source_url: str) -> str:
-        """Generate a unique property ID from the source URL"""
-        
-        if not source_url:
-            # Fallback for empty URLs - should never happen but just in case
-            return f"pincali_empty_{hashlib.md5('empty'.encode()).hexdigest()[:8]}"
-        
-        # Extract the path part of the URL which should be unique for each property
-        parsed_url = urlparse(source_url)
-        
-        # Use the path as the base for the property ID
-        # For Pincali URLs like "/en/home/property-name", we want the "property-name" part
-        path_parts = parsed_url.path.strip('/').split('/')
-        
-        if len(path_parts) >= 3 and path_parts[0] == 'en' and path_parts[1] == 'home':
-            # Use the property slug from the URL (everything after /en/home/)
-            property_slug = '/'.join(path_parts[2:])  # Join all parts after 'home' in case there are multiple segments
-            if property_slug:  # Make sure we have a non-empty slug
-                return f"pincali_{property_slug}"
-            else:
-                # Fallback if somehow the slug is empty
-                url_hash = hashlib.md5(source_url.encode()).hexdigest()[:16]
-                return f"pincali_hash_{url_hash}"
-        else:
-            # Fallback: use hash of the full URL for any unexpected URL patterns
-            url_hash = hashlib.md5(source_url.encode()).hexdigest()[:16]
-            return f"pincali_hash_{url_hash}"
+        """Generate a unique property ID from the source URL using centralized logic"""
+        # Use centralized property ID generation for consistency across all services
+        return centralized_generate_property_id(source_url)
     
     def clean_text(self, text: str) -> str:
         """Clean and normalize text data"""
@@ -861,7 +840,10 @@ class PincaliScraper:
             response = requests.get(detail_url, headers=headers, timeout=30)
             
             if response.status_code == 200:
-                return await self.extract_detailed_property_info(response.text, detail_url)
+                details = await self.extract_detailed_property_info(response.text, detail_url)
+                # Always set property_id using centralized hash-based generation
+                details["property_id"] = self.generate_property_id(detail_url)
+                return details
             else:
                 logger.warning(f"Failed to fetch property details {detail_url}: {response.status_code}")
                 await self.log_error(detail_url, "detail_http_error", f"Status code: {response.status_code}")
@@ -878,12 +860,9 @@ class PincaliScraper:
             soup = BeautifulSoup(html, 'html.parser')
             details = {}
             
-            # Extract property ID
-            listing_id_elem = soup.select_one('.listing-id span')
-            if listing_id_elem:
-                property_id = listing_id_elem.get_text().replace('ID: ', '').strip()
-                if property_id:
-                    details["property_id"] = f"pincali_{property_id}"
+            # Note: Property ID is now generated from URL using centralized hash-based logic
+            # We no longer extract it from HTML to maintain consistency across the system
+            # The property_id will be set by the caller using generate_property_id(source_url)
             
             # Extract title (h1)
             title_elem = soup.select_one('h1')

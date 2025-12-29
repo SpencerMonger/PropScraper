@@ -1196,14 +1196,22 @@ This document contains the complete database schema for the PropScraper system, 
 **Returns:** `trigger`
 
 ```sql
-
-BEGIN
-    -- Check if user already has an action plan
-    IF NOT EXISTS (SELECT 1 FROM action_plans WHERE user_id = NEW.id) THEN
-        PERFORM create_default_journey_for_user(NEW.id);
-    END IF;
-    RETURN NEW;
-END;
+
+
+BEGIN
+
+    -- Check if user already has an action plan
+
+    IF NOT EXISTS (SELECT 1 FROM action_plans WHERE user_id = NEW.id) THEN
+
+        PERFORM create_default_journey_for_user(NEW.id);
+
+    END IF;
+
+    RETURN NEW;
+
+END;
+
 
 ```
 
@@ -1213,41 +1221,76 @@ END;
 **Returns:** `record`
 
 ```sql
-
-DECLARE
-    claimed_ids UUID[];
-BEGIN
-    -- Select and lock items atomically
-    WITH claimed AS (
-        SELECT sq.id
-        FROM scrape_queue sq
-        WHERE sq.status = 'pending'
-        ORDER BY sq.priority, sq.queued_at
-        LIMIT p_batch_size
-        FOR UPDATE SKIP LOCKED
-    )
-    UPDATE scrape_queue sq
-    SET 
-        status = 'in_progress',
-        claimed_at = NOW(),
-        claimed_by = p_worker_id,
-        attempt_count = sq.attempt_count + 1,
-        updated_at = NOW()
-    FROM claimed
-    WHERE sq.id = claimed.id
-    RETURNING sq.id INTO claimed_ids;
-    
-    -- Return the claimed items
-    RETURN QUERY
-    SELECT 
-        sq.id,
-        sq.property_id,
-        sq.source_url,
-        sq.priority,
-        sq.queue_reason
-    FROM scrape_queue sq
-    WHERE sq.id = ANY(claimed_ids);
-END;
+
+
+DECLARE
+
+    claimed_ids UUID[];
+
+BEGIN
+
+    -- Select and lock items atomically
+
+    WITH claimed AS (
+
+        SELECT sq.id
+
+        FROM scrape_queue sq
+
+        WHERE sq.status = 'pending'
+
+        ORDER BY sq.priority, sq.queued_at
+
+        LIMIT p_batch_size
+
+        FOR UPDATE SKIP LOCKED
+
+    )
+
+    UPDATE scrape_queue sq
+
+    SET 
+
+        status = 'in_progress',
+
+        claimed_at = NOW(),
+
+        claimed_by = p_worker_id,
+
+        attempt_count = sq.attempt_count + 1,
+
+        updated_at = NOW()
+
+    FROM claimed
+
+    WHERE sq.id = claimed.id
+
+    RETURNING sq.id INTO claimed_ids;
+
+    
+
+    -- Return the claimed items
+
+    RETURN QUERY
+
+    SELECT 
+
+        sq.id,
+
+        sq.property_id,
+
+        sq.source_url,
+
+        sq.priority,
+
+        sq.queue_reason
+
+    FROM scrape_queue sq
+
+    WHERE sq.id = ANY(claimed_ids);
+
+END;
+
 
 ```
 
@@ -1257,10 +1300,14 @@ END;
 **Returns:** `void`
 
 ```sql
-
-BEGIN
-  DELETE FROM agency_sessions WHERE expires_at < now();
-END;
+
+
+BEGIN
+
+  DELETE FROM agency_sessions WHERE expires_at < now();
+
+END;
+
 
 ```
 
@@ -1270,17 +1317,28 @@ END;
 **Returns:** `integer`
 
 ```sql
-
-DECLARE
-    deleted_count INTEGER;
-BEGIN
-    DELETE FROM scrape_queue
-    WHERE status IN ('completed', 'cancelled')
-    AND completed_at < NOW() - (p_days || ' days')::INTERVAL;
-    
-    GET DIAGNOSTICS deleted_count = ROW_COUNT;
-    RETURN deleted_count;
-END;
+
+
+DECLARE
+
+    deleted_count INTEGER;
+
+BEGIN
+
+    DELETE FROM scrape_queue
+
+    WHERE status IN ('completed', 'cancelled')
+
+    AND completed_at < NOW() - (p_days || ' days')::INTERVAL;
+
+    
+
+    GET DIAGNOSTICS deleted_count = ROW_COUNT;
+
+    RETURN deleted_count;
+
+END;
+
 
 ```
 
@@ -1290,17 +1348,28 @@ END;
 **Returns:** `trigger`
 
 ```sql
-
-BEGIN
-  INSERT INTO action_plans (user_id, title, description, plan_type)
-  VALUES (
-    NEW.id,
-    'My Home Journey',
-    'Track your progress in finding and securing your ideal home',
-    'buy'
-  );
-  RETURN NEW;
-END;
+
+
+BEGIN
+
+  INSERT INTO action_plans (user_id, title, description, plan_type)
+
+  VALUES (
+
+    NEW.id,
+
+    'My Home Journey',
+
+    'Track your progress in finding and securing your ideal home',
+
+    'buy'
+
+  );
+
+  RETURN NEW;
+
+END;
+
 
 ```
 
@@ -1310,64 +1379,122 @@ END;
 **Returns:** `uuid`
 
 ```sql
-
-DECLARE
-    v_action_plan_id UUID;
-    v_step_titles TEXT[] := ARRAY[
-        'Understand Search Preferences',
-        'Create User Profile',
-        'Create First Suggested Playlist',
-        'Confirm Interested Properties',
-        'Educate the User',
-        'Check Financials',
-        'Schedule Property Showing',
-        'Follow-up Education'
-    ];
-    v_step_descriptions TEXT[] := ARRAY[
-        'Collect transaction type, property types, location preferences, price range, and bedroom/bathroom needs',
-        'Generate custom categories based on search preferences and build confidence score',
-        'Proactively create first playlist and alert user about saved recommendations',
-        'User reviews recommended properties and narrows down to top choices',
-        'Provide reference docs for Mexico real estate and ensure search profile is realistic',
-        'Collect Yave 8-step data and extract financial info from uploaded documents',
-        'Contact agents for properties in final playlist and book showings',
-        'Provide ongoing support and guidance through the showing process'
-    ];
-    v_step_index INTEGER;
-BEGIN
-    -- Create action plan
-    INSERT INTO action_plans (user_id, title, description, plan_type, status, current_step_index)
-    VALUES (
-        p_user_id,
-        'My Home Journey',
-        'Track your progress in finding and securing your ideal home',
-        'buy',
-        'active',
-        0
-    )
-    RETURNING id INTO v_action_plan_id;
-    
-    -- Create all 8 steps
-    FOR v_step_index IN 0..7 LOOP
-        INSERT INTO action_plan_steps (
-            plan_id,
-            title,
-            description,
-            order_index,
-            is_completed,
-            metadata
-        ) VALUES (
-            v_action_plan_id,
-            v_step_titles[v_step_index + 1],
-            v_step_descriptions[v_step_index + 1],
-            v_step_index,
-            FALSE,
-            '{}'::jsonb
-        );
-    END LOOP;
-    
-    RETURN v_action_plan_id;
-END;
+
+
+DECLARE
+
+    v_action_plan_id UUID;
+
+    v_step_titles TEXT[] := ARRAY[
+
+        'Understand Search Preferences',
+
+        'Create User Profile',
+
+        'Create First Suggested Playlist',
+
+        'Confirm Interested Properties',
+
+        'Educate the User',
+
+        'Check Financials',
+
+        'Schedule Property Showing',
+
+        'Follow-up Education'
+
+    ];
+
+    v_step_descriptions TEXT[] := ARRAY[
+
+        'Collect transaction type, property types, location preferences, price range, and bedroom/bathroom needs',
+
+        'Generate custom categories based on search preferences and build confidence score',
+
+        'Proactively create first playlist and alert user about saved recommendations',
+
+        'User reviews recommended properties and narrows down to top choices',
+
+        'Provide reference docs for Mexico real estate and ensure search profile is realistic',
+
+        'Collect Yave 8-step data and extract financial info from uploaded documents',
+
+        'Contact agents for properties in final playlist and book showings',
+
+        'Provide ongoing support and guidance through the showing process'
+
+    ];
+
+    v_step_index INTEGER;
+
+BEGIN
+
+    -- Create action plan
+
+    INSERT INTO action_plans (user_id, title, description, plan_type, status, current_step_index)
+
+    VALUES (
+
+        p_user_id,
+
+        'My Home Journey',
+
+        'Track your progress in finding and securing your ideal home',
+
+        'buy',
+
+        'active',
+
+        0
+
+    )
+
+    RETURNING id INTO v_action_plan_id;
+
+    
+
+    -- Create all 8 steps
+
+    FOR v_step_index IN 0..7 LOOP
+
+        INSERT INTO action_plan_steps (
+
+            plan_id,
+
+            title,
+
+            description,
+
+            order_index,
+
+            is_completed,
+
+            metadata
+
+        ) VALUES (
+
+            v_action_plan_id,
+
+            v_step_titles[v_step_index + 1],
+
+            v_step_descriptions[v_step_index + 1],
+
+            v_step_index,
+
+            FALSE,
+
+            '{}'::jsonb
+
+        );
+
+    END LOOP;
+
+    
+
+    RETURN v_action_plan_id;
+
+END;
+
 
 ```
 
@@ -1377,12 +1504,18 @@ END;
 **Returns:** `trigger`
 
 ```sql
-
-BEGIN
-  INSERT INTO playlists (name, description, user_id, is_default)
-  VALUES ('Saved', 'Your saved properties', NEW.id, TRUE);
-  RETURN NEW;
-END;
+
+
+BEGIN
+
+  INSERT INTO playlists (name, description, user_id, is_default)
+
+  VALUES ('Saved', 'Your saved properties', NEW.id, TRUE);
+
+  RETURN NEW;
+
+END;
+
 
 ```
 
@@ -1392,14 +1525,22 @@ END;
 **Returns:** `record`
 
 ```sql
-
-BEGIN
-  RETURN QUERY
-  SELECT
-    auth.uid()               AS current_auth_uid,
-    current_setting('role')  AS current_role_name,
-    session_user             AS session_user_name;
-END;
+
+
+BEGIN
+
+  RETURN QUERY
+
+  SELECT
+
+    auth.uid()               AS current_auth_uid,
+
+    current_setting('role')  AS current_role_name,
+
+    session_user             AS session_user_name;
+
+END;
+
 
 ```
 
@@ -1409,10 +1550,14 @@ END;
 **Returns:** `text`
 
 ```sql
-
-BEGIN
-  RETURN pgp_sym_decrypt(api_key_encrypted, encryption_secret);
-END;
+
+
+BEGIN
+
+  RETURN pgp_sym_decrypt(api_key_encrypted, encryption_secret);
+
+END;
+
 
 ```
 
@@ -1422,10 +1567,14 @@ END;
 **Returns:** `bytea`
 
 ```sql
-
-BEGIN
-  RETURN pgp_sym_encrypt(api_key_plaintext, encryption_secret);
-END;
+
+
+BEGIN
+
+  RETURN pgp_sym_encrypt(api_key_plaintext, encryption_secret);
+
+END;
+
 
 ```
 
@@ -1435,13 +1584,20 @@ END;
 **Returns:** `integer`
 
 ```sql
-
-BEGIN
-    IF p_last_full_scrape_at IS NULL THEN
-        RETURN NULL;
-    END IF;
-    RETURN EXTRACT(DAY FROM (NOW() - p_last_full_scrape_at))::INTEGER;
-END;
+
+
+BEGIN
+
+    IF p_last_full_scrape_at IS NULL THEN
+
+        RETURN NULL;
+
+    END IF;
+
+    RETURN EXTRACT(DAY FROM (NOW() - p_last_full_scrape_at))::INTEGER;
+
+END;
+
 
 ```
 
@@ -1451,21 +1607,36 @@ END;
 **Returns:** `record`
 
 ```sql
-
-BEGIN
-    RETURN QUERY
-    SELECT 
-        sr.id,
-        sr.started_at,
-        sr.completed_at,
-        sr.status,
-        sr.execution_time_ms
-    FROM sync_runs sr
-    WHERE sr.tier_level = p_tier_level
-    AND sr.status = 'completed'
-    ORDER BY sr.started_at DESC
-    LIMIT 1;
-END;
+
+
+BEGIN
+
+    RETURN QUERY
+
+    SELECT 
+
+        sr.id,
+
+        sr.started_at,
+
+        sr.completed_at,
+
+        sr.status,
+
+        sr.execution_time_ms
+
+    FROM sync_runs sr
+
+    WHERE sr.tier_level = p_tier_level
+
+    AND sr.status = 'completed'
+
+    ORDER BY sr.started_at DESC
+
+    LIMIT 1;
+
+END;
+
 
 ```
 
@@ -1475,18 +1646,30 @@ END;
 **Returns:** `record`
 
 ```sql
-
-BEGIN
-    RETURN QUERY
-    SELECT 
-        COUNT(*) as total_properties,
-        COUNT(*) FILTER (WHERE is_new = TRUE) as new_properties,
-        COUNT(*) FILTER (WHERE needs_full_scrape = TRUE) as needs_scrape,
-        COUNT(*) FILTER (WHERE price_changed = TRUE) as price_changed,
-        ROUND(AVG(EXTRACT(DAY FROM (NOW() - last_seen_at))), 2) as avg_days_since_seen,
-        MAX(EXTRACT(DAY FROM (NOW() - last_seen_at)))::INTEGER as oldest_seen_days
-    FROM property_manifest;
-END;
+
+
+BEGIN
+
+    RETURN QUERY
+
+    SELECT 
+
+        COUNT(*) as total_properties,
+
+        COUNT(*) FILTER (WHERE is_new = TRUE) as new_properties,
+
+        COUNT(*) FILTER (WHERE needs_full_scrape = TRUE) as needs_scrape,
+
+        COUNT(*) FILTER (WHERE price_changed = TRUE) as price_changed,
+
+        ROUND(AVG(EXTRACT(DAY FROM (NOW() - last_seen_at))), 2) as avg_days_since_seen,
+
+        MAX(EXTRACT(DAY FROM (NOW() - last_seen_at)))::INTEGER as oldest_seen_days
+
+    FROM property_manifest;
+
+END;
+
 
 ```
 
@@ -1496,46 +1679,86 @@ END;
 **Returns:** `record`
 
 ```sql
-
-BEGIN
-    RETURN QUERY
-    WITH stats AS (
-        SELECT 
-            COUNT(*) FILTER (WHERE status = 'pending') as pending_count,
-            COUNT(*) FILTER (WHERE status = 'in_progress') as in_progress_count,
-            COUNT(*) FILTER (WHERE status = 'completed' AND completed_at >= CURRENT_DATE) as completed_today_count,
-            COUNT(*) FILTER (WHERE status = 'failed' AND completed_at >= CURRENT_DATE) as failed_today_count
-        FROM scrape_queue
-    ),
-    priority_stats AS (
-        SELECT jsonb_object_agg(priority::text, cnt) as priority_json
-        FROM (
-            SELECT priority, COUNT(*) as cnt 
-            FROM scrape_queue 
-            WHERE status = 'pending'
-            GROUP BY priority
-        ) p
-    ),
-    reason_stats AS (
-        SELECT jsonb_object_agg(queue_reason, cnt) as reason_json
-        FROM (
-            SELECT queue_reason, COUNT(*) as cnt 
-            FROM scrape_queue 
-            WHERE status = 'pending'
-            GROUP BY queue_reason
-        ) r
-    )
-    SELECT 
-        s.pending_count,
-        s.in_progress_count,
-        s.completed_today_count,
-        s.failed_today_count,
-        COALESCE(p.priority_json, '{}'),
-        COALESCE(r.reason_json, '{}')
-    FROM stats s
-    CROSS JOIN priority_stats p
-    CROSS JOIN reason_stats r;
-END;
+
+
+BEGIN
+
+    RETURN QUERY
+
+    WITH stats AS (
+
+        SELECT 
+
+            COUNT(*) FILTER (WHERE status = 'pending') as pending_count,
+
+            COUNT(*) FILTER (WHERE status = 'in_progress') as in_progress_count,
+
+            COUNT(*) FILTER (WHERE status = 'completed' AND completed_at >= CURRENT_DATE) as completed_today_count,
+
+            COUNT(*) FILTER (WHERE status = 'failed' AND completed_at >= CURRENT_DATE) as failed_today_count
+
+        FROM scrape_queue
+
+    ),
+
+    priority_stats AS (
+
+        SELECT jsonb_object_agg(priority::text, cnt) as priority_json
+
+        FROM (
+
+            SELECT priority, COUNT(*) as cnt 
+
+            FROM scrape_queue 
+
+            WHERE status = 'pending'
+
+            GROUP BY priority
+
+        ) p
+
+    ),
+
+    reason_stats AS (
+
+        SELECT jsonb_object_agg(queue_reason, cnt) as reason_json
+
+        FROM (
+
+            SELECT queue_reason, COUNT(*) as cnt 
+
+            FROM scrape_queue 
+
+            WHERE status = 'pending'
+
+            GROUP BY queue_reason
+
+        ) r
+
+    )
+
+    SELECT 
+
+        s.pending_count,
+
+        s.in_progress_count,
+
+        s.completed_today_count,
+
+        s.failed_today_count,
+
+        COALESCE(p.priority_json, '{}'),
+
+        COALESCE(r.reason_json, '{}')
+
+    FROM stats s
+
+    CROSS JOIN priority_stats p
+
+    CROSS JOIN reason_stats r;
+
+END;
+
 
 ```
 
@@ -1545,23 +1768,40 @@ END;
 **Returns:** `record`
 
 ```sql
-
-BEGIN
-    RETURN QUERY
-    SELECT 
-        pl.property_id,
-        pl.source_url,
-        pl.last_full_scrape_at,
-        EXTRACT(DAY FROM (NOW() - pl.last_full_scrape_at))::INTEGER as staleness_days
-    FROM properties_live pl
-    WHERE pl.listing_status = 'active'
-    AND (
-        pl.last_full_scrape_at IS NULL 
-        OR pl.last_full_scrape_at < NOW() - (p_stale_days || ' days')::INTERVAL
-    )
-    ORDER BY pl.last_full_scrape_at NULLS FIRST
-    LIMIT p_limit;
-END;
+
+
+BEGIN
+
+    RETURN QUERY
+
+    SELECT 
+
+        pl.property_id,
+
+        pl.source_url,
+
+        pl.last_full_scrape_at,
+
+        EXTRACT(DAY FROM (NOW() - pl.last_full_scrape_at))::INTEGER as staleness_days
+
+    FROM properties_live pl
+
+    WHERE pl.listing_status = 'active'
+
+    AND (
+
+        pl.last_full_scrape_at IS NULL 
+
+        OR pl.last_full_scrape_at < NOW() - (p_stale_days || ' days')::INTERVAL
+
+    )
+
+    ORDER BY pl.last_full_scrape_at NULLS FIRST
+
+    LIMIT p_limit;
+
+END;
+
 
 ```
 
@@ -1571,18 +1811,30 @@ END;
 **Returns:** `record`
 
 ```sql
-
-BEGIN
-  RETURN QUERY
-  SELECT 
-    psr.status,
-    COUNT(*) as count,
-    MAX(psr.status_updated_at) as latest_updated_at
-  FROM property_showing_requests psr
-  WHERE psr.user_id = p_user_id
-  GROUP BY psr.status
-  ORDER BY latest_updated_at DESC;
-END;
+
+
+BEGIN
+
+  RETURN QUERY
+
+  SELECT 
+
+    psr.status,
+
+    COUNT(*) as count,
+
+    MAX(psr.status_updated_at) as latest_updated_at
+
+  FROM property_showing_requests psr
+
+  WHERE psr.user_id = p_user_id
+
+  GROUP BY psr.status
+
+  ORDER BY latest_updated_at DESC;
+
+END;
+
 
 ```
 
@@ -1667,29 +1919,52 @@ END;
 **Returns:** `trigger`
 
 ```sql
-
-BEGIN
-  -- Insert user profile with error handling
-  INSERT INTO public.users (id, email, full_name, avatar_url)
-  VALUES (
-    NEW.id,
-    COALESCE(NEW.email, ''),
-    COALESCE(NEW.raw_user_meta_data->>'full_name', ''),
-    COALESCE(NEW.raw_user_meta_data->>'avatar_url', '')
-  )
-  ON CONFLICT (id) DO UPDATE SET
-    email = EXCLUDED.email,
-    full_name = EXCLUDED.full_name,
-    avatar_url = EXCLUDED.avatar_url,
-    updated_at = NOW();
-  
-  RETURN NEW;
-EXCEPTION
-  WHEN OTHERS THEN
-    -- Log the error but don't fail the auth user creation
-    RAISE WARNING 'Failed to create user profile for %: %', NEW.id, SQLERRM;
-    RETURN NEW;
-END;
+
+
+BEGIN
+
+  -- Insert user profile with error handling
+
+  INSERT INTO public.users (id, email, full_name, avatar_url)
+
+  VALUES (
+
+    NEW.id,
+
+    COALESCE(NEW.email, ''),
+
+    COALESCE(NEW.raw_user_meta_data->>'full_name', ''),
+
+    COALESCE(NEW.raw_user_meta_data->>'avatar_url', '')
+
+  )
+
+  ON CONFLICT (id) DO UPDATE SET
+
+    email = EXCLUDED.email,
+
+    full_name = EXCLUDED.full_name,
+
+    avatar_url = EXCLUDED.avatar_url,
+
+    updated_at = NOW();
+
+  
+
+  RETURN NEW;
+
+EXCEPTION
+
+  WHEN OTHERS THEN
+
+    -- Log the error but don't fail the auth user creation
+
+    RAISE WARNING 'Failed to create user profile for %: %', NEW.id, SQLERRM;
+
+    RETURN NEW;
+
+END;
+
 
 ```
 
@@ -1699,12 +1974,18 @@ END;
 **Returns:** `void`
 
 ```sql
-
-BEGIN
-  UPDATE agency_accounts 
-  SET login_count = COALESCE(login_count, 0) + 1
-  WHERE id = agency_id;
-END;
+
+
+BEGIN
+
+  UPDATE agency_accounts 
+
+  SET login_count = COALESCE(login_count, 0) + 1
+
+  WHERE id = agency_id;
+
+END;
+
 
 ```
 
@@ -1714,24 +1995,42 @@ END;
 **Returns:** `integer`
 
 ```sql
-
-DECLARE
-    updated_count INTEGER;
-BEGIN
-    UPDATE properties_live pl
-    SET 
-        consecutive_missing_count = consecutive_missing_count + 1,
-        updated_at = NOW()
-    WHERE pl.listing_status = 'active'
-    AND pl.property_id NOT IN (
-        SELECT pm.property_id 
-        FROM property_manifest pm 
-        WHERE pm.seen_in_session_id = p_session_id
-    );
-    
-    GET DIAGNOSTICS updated_count = ROW_COUNT;
-    RETURN updated_count;
-END;
+
+
+DECLARE
+
+    updated_count INTEGER;
+
+BEGIN
+
+    UPDATE properties_live pl
+
+    SET 
+
+        consecutive_missing_count = consecutive_missing_count + 1,
+
+        updated_at = NOW()
+
+    WHERE pl.listing_status = 'active'
+
+    AND pl.property_id NOT IN (
+
+        SELECT pm.property_id 
+
+        FROM property_manifest pm 
+
+        WHERE pm.seen_in_session_id = p_session_id
+
+    );
+
+    
+
+    GET DIAGNOSTICS updated_count = ROW_COUNT;
+
+    RETURN updated_count;
+
+END;
+
 
 ```
 
@@ -1741,42 +2040,78 @@ END;
 **Returns:** `integer`
 
 ```sql
-
-DECLARE
-    migrated_count INTEGER := 0;
-BEGIN
-    -- Check if pulled_properties table exists
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'pulled_properties') THEN
-        INSERT INTO properties_live (
-            property_id, title, description, property_type, operation_type,
-            address, neighborhood, city, state, postal_code, latitude, longitude, gps_coordinates,
-            price, currency, price_per_m2, bedrooms, bathrooms, half_bathrooms, parking_spaces,
-            total_area_m2, covered_area_m2, lot_size_m2, floor_number, total_floors, age_years, construction_year,
-            features, amenities, main_image_url, image_urls, virtual_tour_url, video_url,
-            agent_name, agent_phone, agent_email, agency_name, message_url,
-            is_featured, is_premium, source_url, page_number, listing_date, scraped_at,
-            created_at, updated_at, first_seen_at, last_seen_at, last_updated_at
-        )
-        SELECT 
-            property_id, title, description, property_type, operation_type,
-            address, neighborhood, city, state, postal_code, latitude, longitude, gps_coordinates,
-            price, currency, price_per_m2, bedrooms, bathrooms, half_bathrooms, parking_spaces,
-            total_area_m2, covered_area_m2, lot_size_m2, floor_number, total_floors, age_years, construction_year,
-            features, amenities, main_image_url, image_urls, virtual_tour_url, video_url,
-            agent_name, agent_phone, agent_email, agency_name, message_url,
-            is_featured, is_premium, source_url, page_number, listing_date, scraped_at,
-            created_at, updated_at, created_at, updated_at, updated_at
-        FROM pulled_properties
-        WHERE property_id IS NOT NULL
-        ON CONFLICT (property_id) DO NOTHING;
-        
-        GET DIAGNOSTICS migrated_count = ROW_COUNT;
-    ELSE
-        migrated_count := 0;
-    END IF;
-    
-    RETURN migrated_count;
-END;
+
+
+DECLARE
+
+    migrated_count INTEGER := 0;
+
+BEGIN
+
+    -- Check if pulled_properties table exists
+
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'pulled_properties') THEN
+
+        INSERT INTO properties_live (
+
+            property_id, title, description, property_type, operation_type,
+
+            address, neighborhood, city, state, postal_code, latitude, longitude, gps_coordinates,
+
+            price, currency, price_per_m2, bedrooms, bathrooms, half_bathrooms, parking_spaces,
+
+            total_area_m2, covered_area_m2, lot_size_m2, floor_number, total_floors, age_years, construction_year,
+
+            features, amenities, main_image_url, image_urls, virtual_tour_url, video_url,
+
+            agent_name, agent_phone, agent_email, agency_name, message_url,
+
+            is_featured, is_premium, source_url, page_number, listing_date, scraped_at,
+
+            created_at, updated_at, first_seen_at, last_seen_at, last_updated_at
+
+        )
+
+        SELECT 
+
+            property_id, title, description, property_type, operation_type,
+
+            address, neighborhood, city, state, postal_code, latitude, longitude, gps_coordinates,
+
+            price, currency, price_per_m2, bedrooms, bathrooms, half_bathrooms, parking_spaces,
+
+            total_area_m2, covered_area_m2, lot_size_m2, floor_number, total_floors, age_years, construction_year,
+
+            features, amenities, main_image_url, image_urls, virtual_tour_url, video_url,
+
+            agent_name, agent_phone, agent_email, agency_name, message_url,
+
+            is_featured, is_premium, source_url, page_number, listing_date, scraped_at,
+
+            created_at, updated_at, created_at, updated_at, updated_at
+
+        FROM pulled_properties
+
+        WHERE property_id IS NOT NULL
+
+        ON CONFLICT (property_id) DO NOTHING;
+
+        
+
+        GET DIAGNOSTICS migrated_count = ROW_COUNT;
+
+    ELSE
+
+        migrated_count := 0;
+
+    END IF;
+
+    
+
+    RETURN migrated_count;
+
+END;
+
 
 ```
 
@@ -1786,20 +2121,34 @@ END;
 **Returns:** `trigger`
 
 ```sql
-
-BEGIN
-    IF TG_OP = 'INSERT' THEN
-        PERFORM pg_notify('property_changes', 
-            json_build_object('type', 'created', 'id', NEW.id, 'property_id', NEW.property_id)::text);
-    ELSIF TG_OP = 'UPDATE' THEN
-        PERFORM pg_notify('property_changes', 
-            json_build_object('type', 'updated', 'id', NEW.id, 'property_id', NEW.property_id)::text);
-    ELSIF TG_OP = 'DELETE' THEN
-        PERFORM pg_notify('property_changes', 
-            json_build_object('type', 'deleted', 'id', OLD.id, 'property_id', OLD.property_id)::text);
-    END IF;
-    RETURN COALESCE(NEW, OLD);
-END;
+
+
+BEGIN
+
+    IF TG_OP = 'INSERT' THEN
+
+        PERFORM pg_notify('property_changes', 
+
+            json_build_object('type', 'created', 'id', NEW.id, 'property_id', NEW.property_id)::text);
+
+    ELSIF TG_OP = 'UPDATE' THEN
+
+        PERFORM pg_notify('property_changes', 
+
+            json_build_object('type', 'updated', 'id', NEW.id, 'property_id', NEW.property_id)::text);
+
+    ELSIF TG_OP = 'DELETE' THEN
+
+        PERFORM pg_notify('property_changes', 
+
+            json_build_object('type', 'deleted', 'id', OLD.id, 'property_id', OLD.property_id)::text);
+
+    END IF;
+
+    RETURN COALESCE(NEW, OLD);
+
+END;
+
 
 ```
 
@@ -1809,10 +2158,14 @@ END;
 **Returns:** `void`
 
 ```sql
-
-BEGIN
-    REFRESH MATERIALIZED VIEW CONCURRENTLY property_stats;
-END;
+
+
+BEGIN
+
+    REFRESH MATERIALIZED VIEW CONCURRENTLY property_stats;
+
+END;
+
 
 ```
 
@@ -1822,23 +2175,40 @@ END;
 **Returns:** `integer`
 
 ```sql
-
-DECLARE
-    updated_count INTEGER;
-BEGIN
-    UPDATE properties_live pl
-    SET 
-        consecutive_missing_count = 0,
-        last_manifest_seen_at = NOW(),
-        updated_at = NOW()
-    FROM property_manifest pm
-    WHERE pl.property_id = pm.property_id
-    AND pm.seen_in_session_id = p_session_id
-    AND pl.consecutive_missing_count > 0;
-    
-    GET DIAGNOSTICS updated_count = ROW_COUNT;
-    RETURN updated_count;
-END;
+
+
+DECLARE
+
+    updated_count INTEGER;
+
+BEGIN
+
+    UPDATE properties_live pl
+
+    SET 
+
+        consecutive_missing_count = 0,
+
+        last_manifest_seen_at = NOW(),
+
+        updated_at = NOW()
+
+    FROM property_manifest pm
+
+    WHERE pl.property_id = pm.property_id
+
+    AND pm.seen_in_session_id = p_session_id
+
+    AND pl.consecutive_missing_count > 0;
+
+    
+
+    GET DIAGNOSTICS updated_count = ROW_COUNT;
+
+    RETURN updated_count;
+
+END;
+
 
 ```
 
@@ -1903,45 +2273,84 @@ END;
 **Returns:** `record`
 
 ```sql
-
-DECLARE
-    select_result BOOLEAN := FALSE;
-    insert_result BOOLEAN := FALSE;
-BEGIN
-    -- Test SELECT permission
-    BEGIN
-        PERFORM 1 FROM user_favorites WHERE user_id = test_user_id LIMIT 1;
-        select_result := TRUE;
-    EXCEPTION WHEN OTHERS THEN
-        select_result := FALSE;
-    END;
-
-    -- Test INSERT permission (rolled back)
-    BEGIN
-        INSERT INTO user_favorites (user_id, property_id)
-        VALUES (test_user_id, test_property_id);
-        insert_result := TRUE;
-        -- Raise a custom exception so the transaction can be rolled back but we still know the INSERT succeeded
-        RAISE EXCEPTION USING ERRCODE = 'P0001', MESSAGE = 'rollback_test';
-    EXCEPTION
-        WHEN SQLSTATE 'P0001' THEN
-            -- This is the intentional rollback exception
-            IF SQLERRM = 'rollback_test' THEN
-                insert_result := TRUE;   -- INSERT succeeded before rollback
-            ELSE
-                insert_result := FALSE;
-            END IF;
-        WHEN OTHERS THEN
-            insert_result := FALSE;
-    END;
-
-    RETURN QUERY
-    SELECT
-        select_result   AS can_select,
-        insert_result   AS can_insert,
-        auth.uid()      AS auth_uid,
-        test_user_id    AS provided_user_id;
-END;
+
+
+DECLARE
+
+    select_result BOOLEAN := FALSE;
+
+    insert_result BOOLEAN := FALSE;
+
+BEGIN
+
+    -- Test SELECT permission
+
+    BEGIN
+
+        PERFORM 1 FROM user_favorites WHERE user_id = test_user_id LIMIT 1;
+
+        select_result := TRUE;
+
+    EXCEPTION WHEN OTHERS THEN
+
+        select_result := FALSE;
+
+    END;
+
+
+
+    -- Test INSERT permission (rolled back)
+
+    BEGIN
+
+        INSERT INTO user_favorites (user_id, property_id)
+
+        VALUES (test_user_id, test_property_id);
+
+        insert_result := TRUE;
+
+        -- Raise a custom exception so the transaction can be rolled back but we still know the INSERT succeeded
+
+        RAISE EXCEPTION USING ERRCODE = 'P0001', MESSAGE = 'rollback_test';
+
+    EXCEPTION
+
+        WHEN SQLSTATE 'P0001' THEN
+
+            -- This is the intentional rollback exception
+
+            IF SQLERRM = 'rollback_test' THEN
+
+                insert_result := TRUE;   -- INSERT succeeded before rollback
+
+            ELSE
+
+                insert_result := FALSE;
+
+            END IF;
+
+        WHEN OTHERS THEN
+
+            insert_result := FALSE;
+
+    END;
+
+
+
+    RETURN QUERY
+
+    SELECT
+
+        select_result   AS can_select,
+
+        insert_result   AS can_insert,
+
+        auth.uid()      AS auth_uid,
+
+        test_user_id    AS provided_user_id;
+
+END;
+
 
 ```
 
@@ -1951,11 +2360,16 @@ END;
 **Returns:** `trigger`
 
 ```sql
-
-BEGIN
-  NEW.updated_at = now();
-  RETURN NEW;
-END;
+
+
+BEGIN
+
+  NEW.updated_at = now();
+
+  RETURN NEW;
+
+END;
+
 
 ```
 
@@ -1965,11 +2379,16 @@ END;
 **Returns:** `trigger`
 
 ```sql
-
-BEGIN
-    NEW.updated_at = NOW();
-    RETURN NEW;
-END;
+
+
+BEGIN
+
+    NEW.updated_at = NOW();
+
+    RETURN NEW;
+
+END;
+
 
 ```
 
@@ -1979,11 +2398,16 @@ END;
 **Returns:** `trigger`
 
 ```sql
-
-BEGIN
-  NEW.updated_at = NOW();
-  RETURN NEW;
-END;
+
+
+BEGIN
+
+  NEW.updated_at = NOW();
+
+  RETURN NEW;
+
+END;
+
 
 ```
 
@@ -1993,11 +2417,16 @@ END;
 **Returns:** `trigger`
 
 ```sql
-
-BEGIN
-    NEW.updated_at = NOW();
-    RETURN NEW;
-END;
+
+
+BEGIN
+
+    NEW.updated_at = NOW();
+
+    RETURN NEW;
+
+END;
+
 
 ```
 
@@ -2007,11 +2436,16 @@ END;
 **Returns:** `trigger`
 
 ```sql
-
-BEGIN
-    NEW.updated_at = NOW();
-    RETURN NEW;
-END;
+
+
+BEGIN
+
+    NEW.updated_at = NOW();
+
+    RETURN NEW;
+
+END;
+
 
 ```
 
@@ -2021,15 +2455,24 @@ END;
 **Returns:** `trigger`
 
 ```sql
-
-BEGIN
-  NEW.updated_at = NOW();
-  IF OLD.status IS DISTINCT FROM NEW.status THEN
-    NEW.status_updated_at = NOW();
-    NEW.previous_status = OLD.status;
-  END IF;
-  RETURN NEW;
-END;
+
+
+BEGIN
+
+  NEW.updated_at = NOW();
+
+  IF OLD.status IS DISTINCT FROM NEW.status THEN
+
+    NEW.status_updated_at = NOW();
+
+    NEW.previous_status = OLD.status;
+
+  END IF;
+
+  RETURN NEW;
+
+END;
+
 
 ```
 
@@ -2039,11 +2482,16 @@ END;
 **Returns:** `trigger`
 
 ```sql
-
-BEGIN
-  NEW.updated_at = NOW();
-  RETURN NEW;
-END;
+
+
+BEGIN
+
+  NEW.updated_at = NOW();
+
+  RETURN NEW;
+
+END;
+
 
 ```
 
@@ -2053,29 +2501,52 @@ END;
 **Returns:** `uuid`
 
 ```sql
-
-DECLARE
-  agency_id_result UUID;
-BEGIN
-  SELECT agency_id INTO agency_id_result
-  FROM agency_sessions
-  WHERE session_token = session_token_param
-    AND expires_at > now()
-    AND EXISTS (
-      SELECT 1 FROM agency_accounts 
-      WHERE id = agency_sessions.agency_id 
-      AND is_active = true
-    );
-  
-  -- Update last activity
-  IF agency_id_result IS NOT NULL THEN
-    UPDATE agency_sessions 
-    SET last_activity_at = now() 
-    WHERE session_token = session_token_param;
-  END IF;
-  
-  RETURN agency_id_result;
-END;
+
+
+DECLARE
+
+  agency_id_result UUID;
+
+BEGIN
+
+  SELECT agency_id INTO agency_id_result
+
+  FROM agency_sessions
+
+  WHERE session_token = session_token_param
+
+    AND expires_at > now()
+
+    AND EXISTS (
+
+      SELECT 1 FROM agency_accounts 
+
+      WHERE id = agency_sessions.agency_id 
+
+      AND is_active = true
+
+    );
+
+  
+
+  -- Update last activity
+
+  IF agency_id_result IS NOT NULL THEN
+
+    UPDATE agency_sessions 
+
+    SET last_activity_at = now() 
+
+    WHERE session_token = session_token_param;
+
+  END IF;
+
+  
+
+  RETURN agency_id_result;
+
+END;
+
 
 ```
 

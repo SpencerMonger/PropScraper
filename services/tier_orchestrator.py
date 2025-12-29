@@ -17,6 +17,7 @@ from typing import Dict, List, Optional, Any
 from supabase import Client
 
 from config.tier_config import get_config, TierConfig, TierLevel
+from config.property_id import generate_property_id
 from .manifest_scan_service import ManifestScanService, ManifestScanResult
 from .property_diff_service import PropertyDiffService, DiffResult
 from .scrape_queue_service import ScrapeQueueService, QueuedProperty
@@ -557,9 +558,13 @@ class TierOrchestrator:
                         # Ensure source_url is included from queue item
                         property_data['source_url'] = item.source_url
                         
+                        # Use property_id from scraped data (uses centralized hash-based ID)
+                        # Fall back to queue item's property_id if not present
+                        final_property_id = property_data.get('property_id') or generate_property_id(item.source_url)
+                        
                         # Update live table with scraped data
                         await self._update_property_from_scrape(
-                            item.property_id, property_data, session_id
+                            final_property_id, property_data, session_id
                         )
                         
                         await self.queue_service.mark_completed(item.id, success=True)

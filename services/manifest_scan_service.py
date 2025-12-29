@@ -21,6 +21,7 @@ from bs4 import BeautifulSoup
 from supabase import Client
 
 from config.tier_config import get_config, TierConfig
+from config.property_id import generate_property_id
 
 logger = logging.getLogger(__name__)
 
@@ -376,23 +377,12 @@ class ManifestScanService:
         return entry
     
     def _generate_property_id(self, source_url: str) -> Optional[str]:
-        """Generate unique property ID from source URL"""
+        """Generate unique property ID from source URL using centralized logic"""
         if not source_url:
             return None
         
-        parsed_url = urlparse(source_url)
-        path_parts = parsed_url.path.strip('/').split('/')
-        
-        # For Pincali URLs like "/en/home/property-name"
-        if len(path_parts) >= 3 and path_parts[0] == 'en' and path_parts[1] == 'home':
-            property_slug = '/'.join(path_parts[2:])
-            if property_slug:
-                return f"pincali_{property_slug}"
-        
-        # Fallback: use hash
-        import hashlib
-        url_hash = hashlib.md5(source_url.encode()).hexdigest()[:16]
-        return f"pincali_hash_{url_hash}"
+        # Use centralized property ID generation for consistency across all services
+        return generate_property_id(source_url)
     
     def _extract_price(self, price_text: str) -> Optional[float]:
         """Extract numeric price from text"""

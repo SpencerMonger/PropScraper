@@ -245,7 +245,32 @@ python tier_sync_cli.py daemon          # Run continuously
 
 See `commands.md` for full CLI reference.
 
-### 5. Captcha Solver Integration
+### 5. Property ID Generation
+
+All scrapers use a centralized, deterministic property ID generation system (`config/property_id.py`).
+
+**Format:** `pincali_{16-char-md5-hash}`
+
+**Logic:**
+1. Normalize the source URL (lowercase, remove query params/trailing slashes)
+2. Extract the URL path (e.g., `/en/home/casa-en-venta-cancun`)
+3. Generate MD5 hash of the path
+4. Take first 16 characters of the hash
+5. Prefix with `pincali_`
+
+**Example:**
+```
+URL:  https://www.pincali.com/en/home/casa-en-venta-cancun
+ID:   pincali_a3f8b2c1d4e5f6a7
+```
+
+**Benefits:**
+- **Deterministic**: Same URL always produces the same ID
+- **Fixed length**: Always 24 characters (`pincali_` + 16 hex chars)
+- **URL-independent**: Works regardless of URL length or format changes
+- **Consistent**: Used by both manifest scanning and full scraping
+
+### 6. Captcha Solver Integration
 
 #### Purpose:
 Handles anti-bot measures including Cloudflare Turnstile, reCAPTCHA v2/v3, and hCaptcha challenges.
@@ -272,7 +297,7 @@ class CrawlerWithCaptchaSolver:
 - **JavaScript Injection**: Automatically submits solved captchas
 - **Retry Logic**: Multiple attempts with exponential backoff
 
-### 6. Database Architecture
+### 7. Database Architecture
 
 #### Schema Design:
 The system uses a PostgreSQL database through Supabase with a dual-table architecture and supporting tables:
@@ -357,7 +382,7 @@ The system uses a PostgreSQL database through Supabase with a dual-table archite
 - **Triggers**: Automatic timestamp updates
 - **JSON Fields**: Flexible storage for variable property features
 
-### 7. Testing Framework
+### 8. Testing Framework
 
 #### Test Categories:
 

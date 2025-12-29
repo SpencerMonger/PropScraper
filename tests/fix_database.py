@@ -4,41 +4,19 @@ Fix database property_id issues
 """
 
 import os
-import hashlib
-from urllib.parse import urlparse
+import sys
 from dotenv import load_dotenv
 from supabase import create_client
+
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from config.property_id import generate_property_id
 
 # Load environment variables
 load_dotenv()
 
-def generate_property_id(source_url: str) -> str:
-    """Generate a unique property ID from the source URL"""
-    
-    if not source_url:
-        print(f"WARNING: Empty URL provided")
-        return f"pincali_empty_{hashlib.md5('empty'.encode()).hexdigest()[:8]}"
-    
-    # Extract the path part of the URL which should be unique for each property
-    parsed_url = urlparse(source_url)
-    
-    # Use the path as the base for the property ID
-    # For Pincali URLs like "/en/home/property-name", we want the "property-name" part
-    path_parts = parsed_url.path.strip('/').split('/')
-    
-    if len(path_parts) >= 3 and path_parts[0] == 'en' and path_parts[1] == 'home':
-        # Use the property slug from the URL (everything after /en/home/)
-        property_slug = '/'.join(path_parts[2:])  # Join all parts after 'home' in case there are multiple segments
-        if property_slug:  # Make sure we have a non-empty slug
-            return f"pincali_{property_slug}"
-        else:
-            print(f"WARNING: Empty property slug for URL: {source_url}")
-            url_hash = hashlib.md5(source_url.encode()).hexdigest()[:16]
-            return f"pincali_hash_{url_hash}"
-    else:
-        # Fallback: use hash of the full URL for any unexpected URL patterns
-        url_hash = hashlib.md5(source_url.encode()).hexdigest()[:16]
-        return f"pincali_hash_{url_hash}"
+# Note: generate_property_id is now imported from config.property_id
+# This ensures consistent ID generation across all services
 
 def fix_database():
     """Fix the database property_id issues"""
