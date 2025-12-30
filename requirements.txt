@@ -8,4 +8,5 @@ asyncio
 aiohttp>=3.8.0
 playwright>=1.40.0 
 solvecaptcha-python>=1.0.0
-psycopg2-binary>=2.9.0 
+psycopg2-binary>=2.9.0
+pyyaml>=6.0.0

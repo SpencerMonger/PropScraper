@@ -1,0 +1,139 @@
+# Tier Sync Configuration
+# ========================
+# Adjust these parameters to control the hybrid 4-tier sync system.
+# Changes take effect on the next run (no restart required for CLI).
+
+# Base scraping settings
+base_url: "https://www.pincali.com"
+
+# Listing sources to scrape
+listing_sources:
+  - name: "For Sale"
+    url: "https://www.pincali.com/en/properties/properties-for-sale"
+    operation_type: "sale"
+  - name: "For Rent"
+    url: "https://www.pincali.com/en/properties/properties-for-rent"
+    operation_type: "rent"
+  - name: "Foreclosure"
+    url: "https://www.pincali.com/en/properties/properties-for-foreclosure"
+    operation_type: "foreclosure"
+  - name: "New Construction"
+    url: "https://www.pincali.com/en/properties/under-construction"
+    operation_type: "new_construction"
+
+# =============================================================================
+# TIER CONFIGURATIONS
+# =============================================================================
+
+tiers:
+  # Tier 1: Hot Listings - Quick scan for new properties
+  tier_1:
+    name: "hot_listings"
+    display_name: "Hot Listings"
+    frequency_hours: 6           # Run every 6 hours
+    pages_to_scan: 10            # Scan first 10 pages per source
+    delay_between_pages: 1.5     # Seconds between page requests
+    delay_between_details: 0.5   # Seconds between detail page scrapes
+    max_queue_items: 500         # Max items to process per run
+    max_page_failures: 10        # Abort after this many failed pages
+    max_error_percent: 10.0      # Abort if error rate exceeds this
+    retry_attempts: 3
+    retry_delay: 5.0
+    batch_size: 50
+
+  # Tier 2: Daily Sync - Comprehensive daily update
+  tier_2:
+    name: "daily_sync"
+    display_name: "Daily Sync"
+    frequency_hours: 24          # Run every 24 hours
+    pages_to_scan: 100           # Scan first 100 pages per source
+    delay_between_pages: 2.0
+    delay_between_details: 1.0
+    max_queue_items: 5000
+    max_page_failures: 10
+    max_error_percent: 10.0
+    retry_attempts: 3
+    retry_delay: 5.0
+    batch_size: 50
+
+  # Tier 3: Weekly Deep Scan - Full manifest with removal detection
+  tier_3:
+    name: "weekly_deep"
+    display_name: "Weekly Deep Scan"
+    frequency_hours: 168         # 7 days * 24 hours
+    pages_to_scan: 0             # 0 = all pages
+    delay_between_pages: 2.0
+    delay_between_details: 1.0
+    stale_days_threshold: 7      # Queue properties not updated in 7+ days
+    max_queue_items: 10000
+    max_page_failures: 10
+    max_error_percent: 10.0
+    retry_attempts: 3
+    retry_delay: 5.0
+    batch_size: 50
+
+  # Tier 4: Monthly Refresh - Stale data cleanup and validation
+  tier_4:
+    name: "monthly_refresh"
+    display_name: "Monthly Refresh"
+    frequency_hours: 720         # 30 days * 24 hours
+    pages_to_scan: 0             # Targeted, not page-based
+    delay_between_pages: 3.0
+    delay_between_details: 1.5
+    stale_days_threshold: 30     # Queue properties not updated in 30+ days
+    random_sample_percent: 10.0  # Verify 10% of active properties
+    max_queue_items: 20000
+    max_page_failures: 10
+    max_error_percent: 10.0
+    retry_attempts: 3
+    retry_delay: 5.0
+    batch_size: 50
+
+# =============================================================================
+# GLOBAL SETTINGS
+# =============================================================================
+
+# Rate limiting
+rate_limiting:
+  global_delay_min: 1.0          # Minimum delay between any requests
+  global_delay_max: 5.0          # Maximum delay for backoff
+
+# Browser/HTTP settings
+browser:
+  user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+  request_timeout: 30            # Seconds
+
+# Manifest comparison settings
+manifest:
+  price_change_threshold_percent: 1.0    # Flag if price changes > 1%
+  price_change_threshold_absolute: 1000  # OR if changes > $1000
+
+# Removal detection
+removal_detection:
+  min_missing_count: 2           # Consecutive misses before flagging as removed
+  min_expected_percent: 50.0     # Min % of expected properties before processing removals
+
+# Queue settings
+queue:
+  max_pending: 10000             # Max pending items before blocking new additions
+  stale_claim_minutes: 30        # Release claimed items after this time
+  cleanup_days: 7                # Clean up completed/cancelled entries after this many days
+
+# Priority levels (lower = higher priority)
+priorities:
+  new_property: 1
+  price_change: 2
+  relisted: 2
+  verification: 3
+  stale_data: 4
+  random_sample: 5
+
+# Logging
+logging:
+  log_file: "tier_sync.log"
+  log_level: "INFO"              # DEBUG, INFO, WARNING, ERROR
+
+# Concurrency
+concurrency:
+  max_concurrent_scrapers: 1     # Keep at 1 to be respectful to target site
+

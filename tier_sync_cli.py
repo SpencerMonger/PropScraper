@@ -66,14 +66,28 @@ def get_supabase_client() -> Client:
     return create_client(url, key)
 
 
-def create_services(supabase: Client):
-    """Create all required service instances."""
+def create_services(supabase: Client, include_scraper: bool = False):
+    """
+    Create all required service instances.
+    
+    Args:
+        supabase: Supabase client instance
+        include_scraper: If True, include the EnhancedPincaliScraper for queue processing
+    """
     config = get_config()
     
     manifest_service = ManifestScanService(supabase, config)
     diff_service = PropertyDiffService(supabase, config)
     queue_service = ScrapeQueueService(supabase, config)
-    orchestrator = TierOrchestrator(supabase, config)
+    
+    # Create scraper if needed for queue processing
+    scraper = None
+    if include_scraper:
+        from enhanced_property_scraper import EnhancedPincaliScraper
+        scraper = EnhancedPincaliScraper()
+        logger.info("Scraper initialized for queue processing")
+    
+    orchestrator = TierOrchestrator(supabase, config, scraper)
     scheduler = SchedulerService(supabase, config, orchestrator)
     
     return {
@@ -82,7 +96,8 @@ def create_services(supabase: Client):
         'diff': diff_service,
         'queue': queue_service,
         'orchestrator': orchestrator,
-        'scheduler': scheduler
+        'scheduler': scheduler,
+        'scraper': scraper
     }
 
 
@@ -136,7 +151,7 @@ async def cmd_status(args):
 
 
 async def cmd_run_tier(args):
-    """Run a specific tier."""
+    """Run a specific tier with full queue processing."""
     tier_level = args.tier
     
     if tier_level not in [1, 2, 3, 4]:
@@ -144,16 +159,17 @@ async def cmd_run_tier(args):
         sys.exit(1)
     
     supabase = get_supabase_client()
-    services = create_services(supabase)
+    services = create_services(supabase, include_scraper=True)
     scheduler = services['scheduler']
     config = services['config']
     
     tier_settings = config.get_tier(tier_level)
     
     print(f"\n{'=' * 60}")
-    print(f"RUNNING TIER {tier_level}: {tier_settings.name}")
+    print(f"RUNNING TIER {tier_level}: {tier_settings.name} (with queue processing)")
     print(f"{'=' * 60}")
     print(f"Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print("Initializing scraper for queue processing...")
     print()
     
     try:
@@ -168,6 +184,7 @@ async def cmd_run_tier(args):
         print(f"New Properties: {result.new_properties}")
         print(f"Price Changes: {result.price_changes}")
         print(f"Removals Confirmed: {result.removals_confirmed}")
+        print(f"Properties Queued: {result.properties_queued}")
         print(f"Properties Scraped: {result.properties_scraped}")
         
         if result.errors:
@@ -184,14 +201,15 @@ async def cmd_run_tier(args):
 
 
 async def cmd_run_scheduled(args):
-    """Run all scheduled (due) tiers."""
+    """Run all scheduled (due) tiers with full queue processing."""
     print("\n" + "=" * 60)
-    print("RUNNING SCHEDULED TIERS")
+    print("RUNNING SCHEDULED TIERS (with queue processing)")
     print("=" * 60)
     print(f"Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print("Initializing scraper for queue processing...")
     
     supabase = get_supabase_client()
-    services = create_services(supabase)
+    services = create_services(supabase, include_scraper=True)
     scheduler = services['scheduler']
     
     try:
@@ -207,8 +225,9 @@ async def cmd_run_scheduled(args):
                 status = '✅' if result.success else '❌'
                 print(f"{status} Tier {result.tier_level} ({result.tier_name}): "
                       f"{result.duration_seconds:.1f}s, "
-                      f"{result.new_properties_found} new, "
-                      f"{result.price_changes_detected} price changes")
+                      f"{result.new_properties} new, "
+                      f"{result.price_changes} price changes, "
+                      f"{result.properties_scraped} scraped")
         
         print()
         
@@ -361,22 +380,18 @@ async def cmd_process_queue(args):
     print("=" * 60)
     print(f"Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"Rate Limit: {rate_limit}s between requests")
+    print("Initializing scraper...")
     
     supabase = get_supabase_client()
-    config = get_config()
-    
-    # Import and create the scraper
-    from enhanced_property_scraper import EnhancedPincaliScraper
-    scraper = EnhancedPincaliScraper()
-    
-    # Create orchestrator with scraper
-    orchestrator = TierOrchestrator(supabase, config, scraper)
+    services = create_services(supabase, include_scraper=True)
+    orchestrator = services['orchestrator']
+    config = services['config']
     
     try:
         # Create a scraping session for this queue processing run
         session_response = supabase.table('scraping_sessions').insert({
             'session_name': f"Queue Processing {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
-            'base_url': 'https://www.pincali.com',
+            'base_url': config.base_url,
             'status': 'running'
         }).execute()
         
@@ -413,19 +428,20 @@ async def cmd_process_queue(args):
 
 
 async def cmd_run_daemon(args):
-    """Run the scheduler as a continuous daemon."""
+    """Run the scheduler as a continuous daemon with full queue processing."""
     interval = args.interval if hasattr(args, 'interval') and args.interval else 300
     
     print("\n" + "=" * 60)
-    print("STARTING TIER SYNC DAEMON")
+    print("STARTING TIER SYNC DAEMON (with queue processing)")
     print("=" * 60)
     print(f"Check Interval: {interval} seconds")
     print(f"Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print("Initializing scraper for queue processing...")
     print("\nPress Ctrl+C to stop...")
     print()
     
     supabase = get_supabase_client()
-    services = create_services(supabase)
+    services = create_services(supabase, include_scraper=True)
     scheduler = services['scheduler']
     
     try:

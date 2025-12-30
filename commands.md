@@ -4,14 +4,30 @@
 
 | Command | Purpose | Typical Use |
 |---------|---------|-------------|
+| `python tier_sync_cli.py run-scheduled` | Run due tiers + process queue | **Main daily command** |
 | `python tier_sync_cli.py status` | Check tier schedule status | Daily monitoring |
-| `python tier_sync_cli.py run-tier 2` | Run daily sync | Manual daily sync |
-| `python tier_sync_cli.py process-queue` | Scrape queued properties | After tier runs |
+| `python tier_sync_cli.py run-tier 2` | Run specific tier | Manual trigger |
+| `python tier_sync_cli.py process-queue` | Process queue only | Catch up on backlog |
 | `python enhanced_property_scraper.py --all-sources` | Full scrape (legacy) | Initial data load |
 
 ---
 
 ## Hybrid 4-Tier Sync CLI (`tier_sync_cli.py`)
+
+### Main Command: Run Scheduled Tiers
+
+```powershell
+# Run all due tiers with full queue processing (RECOMMENDED)
+python tier_sync_cli.py run-scheduled
+```
+
+This is the **main command** for daily operations. It:
+1. Checks which tiers are due based on their schedules
+2. Runs manifest scanning for each due tier
+3. Queues new/changed properties
+4. **Processes the queue** (scrapes property details with Playwright)
+
+---
 
 ### Check Status
 
@@ -27,34 +43,31 @@ Shows:
 
 ---
 
-### Run Tiers
+### Run Specific Tier
 
 ```powershell
-# Run a specific tier (1-4)
-python tier_sync_cli.py run-tier 1    # Hot Listings (every 4h)
+# Run a specific tier (1-4) with full queue processing
+python tier_sync_cli.py run-tier 1    # Hot Listings (every 6h)
 python tier_sync_cli.py run-tier 2    # Daily Sync (every 24h)
 python tier_sync_cli.py run-tier 3    # Weekly Deep Scan
 python tier_sync_cli.py run-tier 4    # Monthly Refresh
 
 # Force run even if another tier is running
 python tier_sync_cli.py run-tier 2 --force
-
-# Run all tiers that are due according to schedule
-python tier_sync_cli.py run-scheduled
 ```
 
 **Tier Summary:**
 
 | Tier | Name | Frequency | What It Does |
 |------|------|-----------|--------------|
-| 1 | Hot Listings | 4 hours | Scan first 10 pages for new listings |
+| 1 | Hot Listings | 6 hours | Scan first 10 pages for new listings |
 | 2 | Daily Sync | 24 hours | Full manifest scan (100 pages/source) |
 | 3 | Weekly Deep | 7 days | Refresh stale property data |
 | 4 | Monthly | 30 days | Random sample verification |
 
 ---
 
-### Process Scrape Queue
+### Process Queue Only
 
 ```powershell
 # Process pending items in the queue (default: 50 items)
@@ -67,11 +80,10 @@ python tier_sync_cli.py process-queue --batch-size 100
 python tier_sync_cli.py process-queue --batch-size 50 --rate-limit 3.0
 ```
 
-This command:
-- Takes items from `scrape_queue` table
-- Visits each property's detail page
-- Extracts full data (description, amenities, phone numbers)
-- Updates `properties_live` table
+Use this to:
+- Catch up on a backlog after interruption
+- Process more items than a tier normally handles
+- Run with custom rate limiting
 
 ---
 
@@ -132,6 +144,41 @@ python tier_sync_cli.py daemon --interval 600
 ```
 
 Runs continuously and automatically executes tiers when they're due.
+Includes full queue processing.
+
+---
+
+## Configuration
+
+### YAML Config File (`config/tier_config.yaml`)
+
+All tier parameters can be adjusted in `config/tier_config.yaml`:
+
+```yaml
+tiers:
+  tier_1:
+    frequency_hours: 6        # How often to run
+    pages_to_scan: 10         # Pages per source
+    delay_between_pages: 1.5  # Rate limiting
+    max_queue_items: 500      # Max items per run
+  
+  tier_2:
+    frequency_hours: 24
+    pages_to_scan: 100
+    # ... etc
+```
+
+**Key settings you might want to adjust:**
+
+| Setting | Location | Default | Description |
+|---------|----------|---------|-------------|
+| `frequency_hours` | `tiers.tier_N` | varies | How often tier runs |
+| `pages_to_scan` | `tiers.tier_N` | varies | Pages to scan per source |
+| `delay_between_pages` | `tiers.tier_N` | 1.5-3.0 | Seconds between page requests |
+| `delay_between_details` | `tiers.tier_N` | 0.5-1.5 | Seconds between detail scrapes |
+| `max_queue_items` | `tiers.tier_N` | varies | Max items to process per run |
+
+Changes take effect on the next run (no restart required).
 
 ---
 
@@ -184,21 +231,34 @@ Required for extracting phone numbers (authenticated scraping).
 ### Initial Setup (First Time)
 
 ```powershell
-# 1. Save login cookies for phone extraction
+# 1. Install dependencies (including pyyaml)
+pip install -r requirements.txt
+
+# 2. Save login cookies for phone extraction
 python get_cookies.py
 
-# 2. Run full scrape to populate database
+# 3. Run full scrape to populate database
 python enhanced_property_scraper.py --all-sources --all
 ```
 
-### Daily Operations
+### Daily Operations (Recommended)
 
 ```powershell
-# Option A: Run tier 2 manually
-python tier_sync_cli.py run-tier 2
-python tier_sync_cli.py process-queue --batch-size 100
+# Single command: runs due tiers + processes queue
+python tier_sync_cli.py run-scheduled
+```
 
-# Option B: Run as daemon (automatic)
+### Manual Tier Run
+
+```powershell
+# Run a specific tier manually
+python tier_sync_cli.py run-tier 2
+```
+
+### Automated Operation
+
+```powershell
+# Run as daemon (automatic scheduling)
 python tier_sync_cli.py daemon
 ```
 
@@ -221,11 +281,14 @@ SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_ANON_KEY=your-anon-key
 ```
 
-Optional:
+Optional (override YAML config):
 ```
-MAX_PAGES=50
-DELAY_BETWEEN_PAGES=2
-LOG_LEVEL=INFO
+TIER_1_FREQUENCY_HOURS=6
+TIER_1_PAGES=10
+TIER_2_FREQUENCY_HOURS=24
+TIER_2_PAGES=100
+TIER_3_FREQUENCY_DAYS=7
+TIER_4_FREQUENCY_DAYS=30
+TIER_LOG_LEVEL=INFO
 SOLVECAPTCHA_API_KEY=your-key  # For captcha solving
 ```
-
